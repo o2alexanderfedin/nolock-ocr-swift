@@ -5,9 +5,14 @@ All notable changes to the NolockOCR Swift package will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0] - 2025-05-06
 
-### Changed
+### Added
+- Comprehensive Swift submodule guide with detailed usage instructions
+- Documentation for Swift package integration and configuration
+- Test integration guide for Swift submodules
+
+### Changed 
 - Improved HEIC image conversion to use PNG format instead of JPEG for better quality
 - Updated Content-Type headers to reflect PNG image format
 - Removed compression quality settings as PNG is a lossless format
