@@ -434,17 +434,18 @@ public class OCRClient {
         request.httpMethod = "POST"
         
         // Process the image data - convert HEIC to PNG if needed
-        let processedData = try processImageData(imageData)
+        let (processedData, isConverted) = try processImageDataWithInfo(imageData)
         
-        // Set the Content-Type to image/png for the converted image
-        request.setValue("image/png", forHTTPHeaderField: "Content-Type")
+        // Set the Content-Type based on whether image was converted to PNG
+        let contentType = isConverted ? "image/png" : "image/jpeg"
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
         
         // Set the processed image data as the body
         request.httpBody = processedData
         
         // Print debug information
         print("Sending request to URL: \(url.absoluteString)")
-        print("Content-Type: image/png")
+        print("Content-Type: \(contentType)")
         print("Image data size: \(processedData.count) bytes")
         
         // Check if cancelled before starting the request
@@ -516,7 +517,17 @@ public class OCRClient {
     /// Process image data before sending to server
     /// - Converts HEIC images to PNG
     /// - Returns original data for already supported formats
+    /// - Returns: Processed image data
+    @available(*, deprecated, message: "Use processImageDataWithInfo instead")
     private func processImageData(_ imageData: Data) throws -> Data {
+        return try processImageDataWithInfo(imageData).data
+    }
+    
+    /// Process image data before sending to server
+    /// - Converts HEIC images to PNG
+    /// - Returns original data for already supported formats
+    /// - Returns: Tuple with (data, isConverted) where isConverted is true if the image was converted to PNG
+    private func processImageDataWithInfo(_ imageData: Data) throws -> (data: Data, isConverted: Bool) {
         // Check if this is a HEIC image
         let isHEIC = isHEICFormat(imageData)
         
@@ -529,7 +540,7 @@ public class OCRClient {
                 // Convert to PNG (lossless format)
                 if let pngData = image.pngData() {
                     print("HEIC conversion successful: \(imageData.count) bytes → \(pngData.count) bytes")
-                    return pngData
+                    return (pngData, true)
                 }
                 throw OCRError(error: "Failed to convert HEIC to PNG")
             }
@@ -545,7 +556,7 @@ public class OCRClient {
                    let bitmap = NSBitmapImageRep(data: tiffData),
                    let pngData = bitmap.representation(using: .png, properties: [:]) {
                     print("HEIC conversion successful: \(imageData.count) bytes → \(pngData.count) bytes")
-                    return pngData
+                    return (pngData, true)
                 }
                 throw OCRError(error: "Failed to convert HEIC to PNG")
             }
@@ -554,12 +565,12 @@ public class OCRClient {
             #else
             // For other platforms, provide a warning
             print("Warning: HEIC conversion is not supported on this platform. Image may not be processed correctly.")
-            return imageData
+            return (imageData, false)
             #endif
         }
         
         // Return original data for already supported formats
-        return imageData
+        return (imageData, false)
     }
     
     /// Check if the provided data is in HEIC format
