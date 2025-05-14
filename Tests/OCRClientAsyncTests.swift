@@ -11,7 +11,7 @@ class OCRClientAsyncTests: XCTestCase {
     private func mockSuccessResponse<T: Encodable>(data: T) -> (Data, URLResponse) {
         let jsonData = try! JSONEncoder().encode(data)
         let response = HTTPURLResponse(
-            url: URL(string: "https://api.nolock.social")!,
+            url: URL(string: "https://ocr-checks-worker.af-4a0.workers.dev")!,
             statusCode: 200,
             httpVersion: nil,
             headerFields: ["Content-Type": "application/json"]
@@ -54,7 +54,7 @@ class OCRClientAsyncTests: XCTestCase {
             date: "2025-05-01",
             payee: "John Doe",
             payer: "ACME Corp",
-            amount: 250.00,
+            amount: "250.00",
             amountText: "Two hundred fifty dollars",
             memo: "Invoice #12345",
             bankName: "First Bank",
@@ -82,7 +82,7 @@ class OCRClientAsyncTests: XCTestCase {
         // Verify results
         XCTAssertEqual(result.data.checkNumber, "1234")
         XCTAssertEqual(result.data.payee, "John Doe")
-        XCTAssertEqual(result.data.amount, 250.00)
+        XCTAssertEqual(result.data.amount, "250.00")
         XCTAssertEqual(result.confidence.overall, 0.92)
     }
     
