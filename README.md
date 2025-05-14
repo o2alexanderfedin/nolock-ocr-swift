@@ -13,6 +13,7 @@ A Swift client library for the Nolock OCR API that extracts structured data from
 - ✅ **Type-Safe Models** for check and receipt data
 - ✅ **SwiftUI Integration** ready
 - ✅ **Comprehensive Error Handling**
+- ✅ **Task Cancellation** support for in-progress operations
 - ✅ **Confidence Scoring** for OCR and extraction quality
 - ✅ **Environment Configuration** for development, staging, and production
 - ✅ **HEIC Image Support** with automatic conversion
@@ -251,6 +252,128 @@ client.processCheck(
     filename: "business_check.jpg"
 ) { result in
     // Handle result
+}
+```
+
+### Cancelling In-Progress Operations
+
+The library supports cancellation of in-progress API requests, which is particularly useful for long-running operations or when the user wants to cancel an ongoing task.
+
+#### With async/await in a Task:
+
+```swift
+// Create the client
+let client = NolockOCR.productionClient()
+
+// Start a task that can be cancelled
+let processingTask = Task {
+    do {
+        let response = try await client.processCheck(imageData: largeImageData)
+        // Handle successful response
+        return response
+    } catch let error as OCRClientError where error == .taskCancelled {
+        // Handle cancellation specifically
+        print("Processing was cancelled by the user")
+        throw error
+    } catch {
+        // Handle other errors
+        print("Error processing check: \(error)")
+        throw error
+    }
+}
+
+// Later, if you need to cancel:
+client.cancelProcessing()
+processingTask.cancel() // Also cancel the Swift Task
+```
+
+#### With SwiftUI:
+
+```swift
+struct CheckScannerView: View {
+    @State private var checkData: Check?
+    @State private var isLoading = false
+    @State private var error: Error?
+    
+    let client = NolockOCR.productionClient()
+    let imageData: Data
+    
+    var body: some View {
+        VStack {
+            if isLoading {
+                ProgressView("Processing check...")
+                
+                Button("Cancel") {
+                    // Cancel the processing
+                    client.cancelProcessing()
+                }
+                .foregroundColor(.red)
+            } else if let check = checkData {
+                // Display check data...
+            } else if let error = error {
+                Text("Error: \(error.localizedDescription)")
+                    .foregroundColor(.red)
+            }
+            
+            Button("Scan Check") {
+                Task {
+                    await scanCheck()
+                }
+            }
+            .disabled(isLoading)
+        }
+        .padding()
+    }
+    
+    func scanCheck() async {
+        isLoading = true
+        error = nil
+        
+        do {
+            let response = try await client.processCheck(imageData: imageData)
+            checkData = response.data
+        } catch let error as OCRClientError where error == .taskCancelled {
+            // Handle cancellation specifically
+            self.error = error
+        } catch {
+            self.error = error
+        }
+        
+        isLoading = false
+    }
+}
+```
+
+#### Handling Cancellation Errors:
+
+The library provides specific error types for cancellation:
+
+```swift
+do {
+    let response = try await client.processCheck(imageData: imageData)
+    // Process successful response
+} catch let error as OCRClientError {
+    switch error {
+    case .taskCancelled:
+        print("Task was cancelled by the user")
+    case .noActiveTask:
+        print("Attempted to cancel, but no task was active")
+    }
+} catch {
+    print("Other error occurred: \(error)")
+}
+```
+
+#### Cancellation Response:
+
+The `cancelProcessing()` method returns a boolean indicating whether a task was actually cancelled:
+
+```swift
+let wasCancelled = client.cancelProcessing()
+if wasCancelled {
+    print("Successfully cancelled an active task")
+} else {
+    print("No active task to cancel")
 }
 ```
 
