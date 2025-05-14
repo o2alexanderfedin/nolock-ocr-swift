@@ -5,6 +5,14 @@ All notable changes to the NolockOCR Swift package will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2025-05-13
+
+### Added
+- Task cancellation support for all asynchronous operations
+- New OCRClientError enum with taskCancelled and noActiveTask cases
+- cancelProcessing() method to cancel in-progress tasks
+- Updated documentation with cancellation examples
+
 ## [1.2.0] - 2025-05-06
 
 ### Added
