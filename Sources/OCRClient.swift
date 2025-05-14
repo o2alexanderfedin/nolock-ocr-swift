@@ -103,13 +103,13 @@ public class OCRClient {
     
     /// Available server environments for the API
     public enum Environment {
-        /// Production server at api.nolock.social
+        /// Production server at ocr-checks-worker.af-4a0.workers.dev
         case production
         
-        /// Development server at dev-api.nolock.social
+        /// Development server at ocr-checks-worker-dev.af-4a0.workers.dev
         case development
         
-        /// Local development server at http://localhost:8789
+        /// Local development server at http://localhost:8787
         case local
         
         /// Custom server URL
@@ -118,11 +118,11 @@ public class OCRClient {
         var url: URL {
             switch self {
             case .production:
-                return URL(string: "https://api.nolock.social")!
+                return URL(string: "https://ocr-checks-worker.af-4a0.workers.dev")!
             case .development:
-                return URL(string: "https://dev-api.nolock.social")!
+                return URL(string: "https://ocr-checks-worker-dev.af-4a0.workers.dev")!
             case .local:
-                return URL(string: "http://localhost:8789")!
+                return URL(string: "http://localhost:8787")!
             case .custom(let url):
                 return url
             }
