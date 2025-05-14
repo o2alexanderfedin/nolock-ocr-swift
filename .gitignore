@@ -64,3 +64,10 @@ iOSInjectionProject/
 
 # macOS
 .DS_Store
+
+# Test images
+*.jpg
+*.jpeg
+*.png
+*.heic
+*.HEIC
