@@ -87,19 +87,34 @@ public struct HealthResponse: Codable {
     public let version: String
 }
 
-// Protocol for using with URLSession mocking
+/// Protocol for using with URLSession mocking
 public protocol URLSessionProtocol {
     func data(from url: URL, delegate: URLSessionTaskDelegate?) async throws -> (Data, URLResponse)
     func data(for request: URLRequest, delegate: URLSessionTaskDelegate?) async throws -> (Data, URLResponse)
+    
+    /// Create a data task that can be started and cancelled
+    func dataTask(with request: URLRequest, completionHandler: @escaping (Data?, URLResponse?, Error?) -> Void) -> URLSessionDataTask
 }
 
-// Extend URLSession to conform to the protocol
+/// Extend URLSession to conform to the protocol
 extension URLSession: URLSessionProtocol {}
+
+/// Custom error type for task cancellation
+public enum OCRClientError: Error, Equatable {
+    case taskCancelled
+    case noActiveTask
+}
 
 /// Main client for the OCR Checks Server API
 public class OCRClient {
     private let baseURL: URL
     private let session: URLSessionProtocol
+    
+    /// Active task that can be cancelled
+    private var activeTask: URLSessionDataTask?
+    
+    /// Cancel token to track task cancellation in async/await API
+    private var isCancelled = false
     
     /// Available server environments for the API
     public enum Environment {
@@ -135,6 +150,25 @@ public class OCRClient {
     public init(environment: Environment = .production, session: URLSessionProtocol = URLSession.shared) {
         self.baseURL = environment.url
         self.session = session
+        self.activeTask = nil
+        self.isCancelled = false
+    }
+    
+    /// Cancel any active processing task
+    /// - Returns: True if a task was cancelled, false if no task was active
+    @discardableResult
+    public func cancelProcessing() -> Bool {
+        // Reset cancellation flag
+        isCancelled = true
+        
+        // Cancel active task if one exists
+        if let task = activeTask {
+            task.cancel()
+            activeTask = nil
+            return true
+        }
+        
+        return false
     }
     
     // MARK: - Async/Await API Methods
@@ -232,28 +266,76 @@ public class OCRClient {
     /// - Returns: A HealthResponse containing the server health information
     /// - Throws: An error if the request fails
     public func getHealth() async throws -> HealthResponse {
+        // Reset cancellation flag at the start of a new request
+        isCancelled = false
+        
         let url = baseURL.appendingPathComponent("health")
+        var request = URLRequest(url: url)
         
-        let (data, response) = try await session.data(from: url, delegate: nil)
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw OCRError(error: "Invalid response")
+        // Check if cancelled before starting the request
+        if isCancelled {
+            throw OCRClientError.taskCancelled
         }
         
-        guard (200...299).contains(httpResponse.statusCode) else {
-            // Print the response body for debugging
-            let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
-            print("HTTP Error \(httpResponse.statusCode): \(responseString)")
-            
-            if let errorResponse = try? JSONDecoder().decode(OCRError.self, from: data) {
-                throw errorResponse
-            } else {
-                throw OCRError(error: "HTTP Error: \(httpResponse.statusCode) - \(responseString)")
+        return try await withCheckedThrowingContinuation { continuation in
+            // Create a task that can be cancelled
+            let task = session.dataTask(with: request) { data, response, error in
+                // Clear the active task reference
+                self.activeTask = nil
+                
+                // Handle cancellation
+                if self.isCancelled {
+                    continuation.resume(throwing: OCRClientError.taskCancelled)
+                    return
+                }
+                
+                // Handle connection errors
+                if let error = error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                
+                // Ensure we have valid data and response
+                guard let data = data, let response = response else {
+                    continuation.resume(throwing: OCRError(error: "No data or response received"))
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    continuation.resume(throwing: OCRError(error: "Invalid response"))
+                    return
+                }
+                
+                // Handle HTTP errors
+                guard (200...299).contains(httpResponse.statusCode) else {
+                    // Print the response body for debugging
+                    let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
+                    print("HTTP Error \(httpResponse.statusCode): \(responseString)")
+                    
+                    if let errorResponse = try? JSONDecoder().decode(OCRError.self, from: data) {
+                        continuation.resume(throwing: errorResponse)
+                    } else {
+                        continuation.resume(throwing: OCRError(error: "HTTP Error: \(httpResponse.statusCode) - \(responseString)"))
+                    }
+                    return
+                }
+                
+                // Process successful response
+                do {
+                    let decoder = JSONDecoder()
+                    let result = try decoder.decode(HealthResponse.self, from: data)
+                    continuation.resume(returning: result)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
             }
+            
+            // Store the task so it can be cancelled from the outside
+            self.activeTask = task
+            
+            // Start the task
+            task.resume()
         }
-        
-        let decoder = JSONDecoder()
-        return try decoder.decode(HealthResponse.self, from: data)
     }
     
     // MARK: - Backward Compatibility Methods with Completion Handlers
@@ -345,6 +427,9 @@ public class OCRClient {
         url: URL, 
         imageData: Data
     ) async throws -> T {
+        // Reset cancellation flag at the start of a new request
+        isCancelled = false
+        
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         
@@ -362,26 +447,70 @@ public class OCRClient {
         print("Content-Type: image/png")
         print("Image data size: \(processedData.count) bytes")
         
-        let (data, response) = try await session.data(for: request, delegate: nil)
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw OCRError(error: "Invalid response")
+        // Check if cancelled before starting the request
+        if isCancelled {
+            throw OCRClientError.taskCancelled
         }
         
-        guard (200...299).contains(httpResponse.statusCode) else {
-            // Print the response body for debugging
-            let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
-            print("HTTP Error \(httpResponse.statusCode): \(responseString)")
-            
-            if let errorResponse = try? JSONDecoder().decode(OCRError.self, from: data) {
-                throw errorResponse
-            } else {
-                throw OCRError(error: "HTTP Error: \(httpResponse.statusCode) - \(responseString)")
+        return try await withCheckedThrowingContinuation { continuation in
+            // Create a task that can be cancelled
+            let task = session.dataTask(with: request) { data, response, error in
+                // Store the task reference so it can be cancelled
+                self.activeTask = nil
+                
+                // Handle cancellation
+                if self.isCancelled {
+                    continuation.resume(throwing: OCRClientError.taskCancelled)
+                    return
+                }
+                
+                // Handle connection errors
+                if let error = error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                
+                // Ensure we have valid data and response
+                guard let data = data, let response = response else {
+                    continuation.resume(throwing: OCRError(error: "No data or response received"))
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    continuation.resume(throwing: OCRError(error: "Invalid response"))
+                    return
+                }
+                
+                // Handle HTTP errors
+                guard (200...299).contains(httpResponse.statusCode) else {
+                    // Print the response body for debugging
+                    let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
+                    print("HTTP Error \(httpResponse.statusCode): \(responseString)")
+                    
+                    if let errorResponse = try? JSONDecoder().decode(OCRError.self, from: data) {
+                        continuation.resume(throwing: errorResponse)
+                    } else {
+                        continuation.resume(throwing: OCRError(error: "HTTP Error: \(httpResponse.statusCode) - \(responseString)"))
+                    }
+                    return
+                }
+                
+                // Process successful response
+                do {
+                    let decoder = JSONDecoder()
+                    let result = try decoder.decode(T.self, from: data)
+                    continuation.resume(returning: result)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
             }
+            
+            // Store the task so it can be cancelled from the outside
+            self.activeTask = task
+            
+            // Start the task
+            task.resume()
         }
-        
-        let decoder = JSONDecoder()
-        return try decoder.decode(T.self, from: data)
     }
     
     /// Process image data before sending to server
