@@ -47,6 +47,18 @@ You can also explicitly skip integration tests by setting an environment variabl
 OCR_SKIP_INTEGRATION_TESTS=1 swift test
 ```
 
+#### Testing Against Remote Server
+
+The Swift integration tests can be configured to run against a remote server by setting the `OCR_API_URL` environment variable:
+
+```bash
+export OCR_API_URL="https://ocr-checks-worker.af-4a0.workers.dev"
+cd swift-proxy
+swift test
+```
+
+This will direct all tests to use the specified remote server instead of a local instance.
+
 ## Test Images
 
 Integration tests use check/receipt images from the `tests/fixtures/images` directory. The tests look for various test images like `rental-bill.jpg`, `fredmeyer-receipt.jpg`, and `promo-check.HEIC` in several common locations relative to the test runner.
@@ -55,10 +67,16 @@ Integration tests use check/receipt images from the `tests/fixtures/images` dire
 
 If integration tests are failing:
 
-1. Ensure the server is running at http://localhost:8787
+1. Ensure the server is running at http://localhost:8787 (or the URL specified in OCR_API_URL)
 2. Verify the test images exist in `tests/fixtures/images/` directory
 3. Check server logs for any errors
 4. Try running with increased timeout if network latency is an issue
+5. If you encounter errors about image format or base64 encoding, verify that OCRClient is formatting requests correctly for the server's API expectations:
+   - JPEG images should use "Content-Type: image/jpeg"
+   - PNG images should use "Content-Type: image/png"
+   - HEIC images are automatically converted to PNG and use "Content-Type: image/png"
+6. When running against the production API, ensure you have a valid API key configured
+7. Look for error messages in the test output - they often contain detailed information about what went wrong
 
 ## Adding New Tests
 
