@@ -156,18 +156,27 @@ public struct Check: Codable {
         metadata = try container.decodeIfPresent(CheckMetadata.self, forKey: .metadata)
         confidence = try container.decode(Double.self, forKey: .confidence)
         
-        // Handle amount field that can be either string or number
+        // Handle amount field that can be either string or Decimal
         if let amountString = try? container.decode(String.self, forKey: .amount) {
             // If it's already a string, use it directly
             amount = amountString
-        } else if let amountDouble = try? container.decode(Double.self, forKey: .amount) {
-            // If it's a number, convert to string with 2 decimal places
-            amount = String(format: "%.2f", amountDouble)
+        } else if let amountDecimal = try? container.decode(Decimal.self, forKey: .amount) {
+            // If it's a decimal number, convert to string with proper formatting
+            let formatter = NumberFormatter()
+            formatter.minimumFractionDigits = 2
+            formatter.maximumFractionDigits = 2
+            formatter.numberStyle = .decimal
+            
+            if let formattedAmount = formatter.string(from: amountDecimal as NSDecimalNumber) {
+                amount = formattedAmount.replacingOccurrences(of: formatter.groupingSeparator, with: "")
+            } else {
+                amount = "\(amountDecimal)"
+            }
         } else {
             throw DecodingError.dataCorruptedError(
                 forKey: .amount,
                 in: container,
-                debugDescription: "Amount must be either a string or a number"
+                debugDescription: "Amount must be either a string or a decimal number"
             )
         }
     }
