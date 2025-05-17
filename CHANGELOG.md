@@ -5,6 +5,14 @@ All notable changes to the NolockOCR Swift package will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- Changed model representations to store monetary values as Decimal types directly instead of strings
+- Updated Check and Receipt models to use Decimal for all amounts, prices, totals, and tax values
+- Added convenience initializers for backward compatibility with string values
+- Preserved string formatting capabilities through computed properties
+
 ## [1.3.1] - 2025-05-17
 
 ### Fixed

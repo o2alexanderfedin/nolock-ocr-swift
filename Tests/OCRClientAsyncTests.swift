@@ -55,7 +55,7 @@ class OCRClientAsyncTests: XCTestCase {
             date: "2025-05-01",
             payee: "John Doe",
             payer: "ACME Corp",
-            amount: "250.00",
+            amount: Decimal(string: "250.00")!,
             amountText: "Two hundred fifty dollars",
             memo: "Invoice #12345",
             bankName: "First Bank",
@@ -83,7 +83,7 @@ class OCRClientAsyncTests: XCTestCase {
         // Verify results
         XCTAssertEqual(result.data.checkNumber, "1234")
         XCTAssertEqual(result.data.payee, "John Doe")
-        XCTAssertEqual(result.data.amount, "250.00")
+        XCTAssertEqual(result.data.amount, Decimal(string: "250.00"))
         XCTAssertEqual(result.confidence.overall, 0.92)
     }
     
@@ -132,7 +132,7 @@ class OCRClientAsyncTests: XCTestCase {
             date: "2025-05-01",
             payee: "John Doe",
             payer: "ACME Corp",
-            amount: "250.00",
+            amount: Decimal(string: "250.00")!,
             amountText: "Two hundred fifty dollars",
             memo: "Invoice #12345",
             bankName: "First Bank",

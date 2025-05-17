@@ -198,59 +198,73 @@ public struct MerchantInfo: Codable {
 
 /// Receipt totals information
 public struct ReceiptTotals: Codable {
-    /// Pre-tax total amount as string to preserve exact decimal representation
-    public let subtotal: String?
+    /// Pre-tax total amount as Decimal for precise financial calculations
+    public let subtotal: Decimal?
     
-    /// Total tax amount as string to preserve exact decimal representation
-    public let tax: String?
+    /// Total tax amount as Decimal for precise financial calculations
+    public let tax: Decimal?
     
-    /// Tip/gratuity amount as string to preserve exact decimal representation
-    public let tip: String?
+    /// Tip/gratuity amount as Decimal for precise financial calculations
+    public let tip: Decimal?
     
-    /// Total discount amount as string to preserve exact decimal representation
-    public let discount: String?
+    /// Total discount amount as Decimal for precise financial calculations
+    public let discount: Decimal?
     
-    /// Final total amount as string to preserve exact decimal representation
-    public let total: String
+    /// Final total amount as Decimal for precise financial calculations
+    public let total: Decimal
     
-    // Computed properties to access monetary values as Decimal
+    // Computed properties to access monetary values as formatted strings
     
-    /// Pre-tax total amount as Decimal
-    public var subtotalDecimal: Decimal? {
+    /// Pre-tax total amount as formatted string
+    public var subtotalString: String? {
         guard let subtotal = subtotal else { return nil }
-        return Decimal(string: subtotal)
+        return formatDecimal(subtotal)
     }
     
-    /// Total tax amount as Decimal
-    public var taxDecimal: Decimal? {
+    /// Total tax amount as formatted string
+    public var taxString: String? {
         guard let tax = tax else { return nil }
-        return Decimal(string: tax)
+        return formatDecimal(tax)
     }
     
-    /// Tip/gratuity amount as Decimal
-    public var tipDecimal: Decimal? {
+    /// Tip/gratuity amount as formatted string
+    public var tipString: String? {
         guard let tip = tip else { return nil }
-        return Decimal(string: tip)
+        return formatDecimal(tip)
     }
     
-    /// Total discount amount as Decimal
-    public var discountDecimal: Decimal? {
+    /// Total discount amount as formatted string
+    public var discountString: String? {
         guard let discount = discount else { return nil }
-        return Decimal(string: discount)
+        return formatDecimal(discount)
     }
     
-    /// Final total amount as Decimal
-    public var totalDecimal: Decimal? {
-        return Decimal(string: total)
+    /// Final total amount as formatted string
+    public var totalString: String {
+        return formatDecimal(total)
+    }
+    
+    /// Helper function to format a Decimal value as a string
+    private func formatDecimal(_ value: Decimal) -> String {
+        let formatter = NumberFormatter()
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        formatter.numberStyle = .decimal
+        
+        if let formattedValue = formatter.string(from: value as NSDecimalNumber) {
+            return formattedValue.replacingOccurrences(of: formatter.groupingSeparator, with: "")
+        } else {
+            return "\(value)"
+        }
     }
     
     /// Standard initializer for creating receipt totals programmatically
     public init(
-        subtotal: String?,
-        tax: String?,
-        tip: String?,
-        discount: String?,
-        total: String
+        subtotal: Decimal?,
+        tax: Decimal?,
+        tip: Decimal?,
+        discount: Decimal?,
+        total: Decimal
     ) {
         self.subtotal = subtotal
         self.tax = tax
@@ -259,49 +273,65 @@ public struct ReceiptTotals: Codable {
         self.total = total
     }
     
+    /// Alternative initializer for creating receipt totals from string values
+    public init(
+        subtotalString: String?,
+        taxString: String?,
+        tipString: String?,
+        discountString: String?,
+        totalString: String
+    ) throws {
+        let subtotalDecimal = subtotalString.flatMap { Decimal(string: $0) }
+        let taxDecimal = taxString.flatMap { Decimal(string: $0) }
+        let tipDecimal = tipString.flatMap { Decimal(string: $0) }
+        let discountDecimal = discountString.flatMap { Decimal(string: $0) }
+        
+        guard let totalDecimal = Decimal(string: totalString) else {
+            // Create a simple error since we're not in a decoder context
+            let error = NSError(
+                domain: "ReceiptTotals",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Total string must be a valid decimal number"]
+            )
+            throw error
+        }
+        
+        self.init(
+            subtotal: subtotalDecimal,
+            tax: taxDecimal,
+            tip: tipDecimal,
+            discount: discountDecimal,
+            total: totalDecimal
+        )
+    }
+    
     /// Custom decoding to handle both string and numeric values
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
         // Helper function to decode a monetary value that could be a string or decimal
-        func decodeMonetaryValue(forKey key: CodingKeys) throws -> String? {
-            if let stringValue = try? container.decodeIfPresent(String.self, forKey: key) {
-                return stringValue
-            } else if let decimalValue = try? container.decode(Decimal.self, forKey: key) {
-                let formatter = NumberFormatter()
-                formatter.minimumFractionDigits = 2
-                formatter.maximumFractionDigits = 2
-                formatter.numberStyle = .decimal
-                
-                if let formattedValue = formatter.string(from: decimalValue as NSDecimalNumber) {
-                    return formattedValue.replacingOccurrences(of: formatter.groupingSeparator, with: "")
-                } else {
-                    return "\(decimalValue)"
-                }
+        func decodeDecimalValue(forKey key: CodingKeys) throws -> Decimal? {
+            if let decimalValue = try? container.decodeIfPresent(Decimal.self, forKey: key) {
+                return decimalValue
+            } else if let stringValue = try? container.decodeIfPresent(String.self, forKey: key), 
+                      let decimalFromString = Decimal(string: stringValue) {
+                return decimalFromString
             }
             return nil
         }
         
         // Decode optional fields
-        subtotal = try decodeMonetaryValue(forKey: .subtotal)
-        tax = try decodeMonetaryValue(forKey: .tax)
-        tip = try decodeMonetaryValue(forKey: .tip)
-        discount = try decodeMonetaryValue(forKey: .discount)
+        subtotal = try decodeDecimalValue(forKey: .subtotal)
+        tax = try decodeDecimalValue(forKey: .tax)
+        tip = try decodeDecimalValue(forKey: .tip)
+        discount = try decodeDecimalValue(forKey: .discount)
         
         // Decode required total field
-        if let totalString = try? container.decode(String.self, forKey: .total) {
-            total = totalString
-        } else if let totalDecimal = try? container.decode(Decimal.self, forKey: .total) {
-            let formatter = NumberFormatter()
-            formatter.minimumFractionDigits = 2
-            formatter.maximumFractionDigits = 2
-            formatter.numberStyle = .decimal
-            
-            if let formattedTotal = formatter.string(from: totalDecimal as NSDecimalNumber) {
-                total = formattedTotal.replacingOccurrences(of: formatter.groupingSeparator, with: "")
-            } else {
-                total = "\(totalDecimal)"
-            }
+        if let totalDecimal = try? container.decode(Decimal.self, forKey: .total) {
+            total = totalDecimal
+        } else if let totalString = try? container.decode(String.self, forKey: .total),
+                  let totalDecimal = Decimal(string: totalString) {
+            total = totalDecimal
         } else {
             throw DecodingError.dataCorruptedError(
                 forKey: .total,
@@ -313,6 +343,18 @@ public struct ReceiptTotals: Codable {
     
     private enum CodingKeys: String, CodingKey {
         case subtotal, tax, tip, discount, total
+    }
+    
+    /// Custom encoding to ensure proper handling of Decimal values
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        // Encode all fields
+        try container.encodeIfPresent(subtotal, forKey: .subtotal)
+        try container.encodeIfPresent(tax, forKey: .tax)
+        try container.encodeIfPresent(tip, forKey: .tip)
+        try container.encodeIfPresent(discount, forKey: .discount)
+        try container.encode(total, forKey: .total)
     }
 }
 
@@ -330,38 +372,52 @@ public struct ReceiptLineItem: Codable {
     /// Unit of measurement
     public let unit: String?
     
-    /// Price per unit as string to preserve exact decimal representation
-    public let unitPrice: String?
+    /// Price per unit as Decimal for precise financial calculations
+    public let unitPrice: Decimal?
     
-    /// Total price for this line item as string to preserve exact decimal representation
-    public let totalPrice: String
+    /// Total price for this line item as Decimal for precise financial calculations
+    public let totalPrice: Decimal
     
     /// Whether the item was discounted
     public let discounted: Bool?
     
-    /// Amount of discount applied as string to preserve exact decimal representation
-    public let discountAmount: String?
+    /// Amount of discount applied as Decimal for precise financial calculations
+    public let discountAmount: Decimal?
     
     /// Product category
     public let category: String?
     
-    // Computed properties to access monetary values as Decimal
+    // Computed properties to access monetary values as formatted strings
     
-    /// Price per unit as Decimal
-    public var unitPriceDecimal: Decimal? {
+    /// Price per unit as formatted string
+    public var unitPriceString: String? {
         guard let unitPrice = unitPrice else { return nil }
-        return Decimal(string: unitPrice)
+        return formatDecimal(unitPrice)
     }
     
-    /// Total price for this line item as Decimal
-    public var totalPriceDecimal: Decimal? {
-        return Decimal(string: totalPrice)
+    /// Total price for this line item as formatted string
+    public var totalPriceString: String {
+        return formatDecimal(totalPrice)
     }
     
-    /// Amount of discount applied as Decimal
-    public var discountAmountDecimal: Decimal? {
+    /// Amount of discount applied as formatted string
+    public var discountAmountString: String? {
         guard let discountAmount = discountAmount else { return nil }
-        return Decimal(string: discountAmount)
+        return formatDecimal(discountAmount)
+    }
+    
+    /// Helper function to format a Decimal value as a string
+    private func formatDecimal(_ value: Decimal) -> String {
+        let formatter = NumberFormatter()
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        formatter.numberStyle = .decimal
+        
+        if let formattedValue = formatter.string(from: value as NSDecimalNumber) {
+            return formattedValue.replacingOccurrences(of: formatter.groupingSeparator, with: "")
+        } else {
+            return "\(value)"
+        }
     }
     
     /// Standard initializer for creating line items programmatically
@@ -370,10 +426,10 @@ public struct ReceiptLineItem: Codable {
         sku: String?,
         quantity: Double?,
         unit: String?,
-        unitPrice: String?,
-        totalPrice: String,
+        unitPrice: Decimal?,
+        totalPrice: Decimal,
         discounted: Bool?,
-        discountAmount: String?,
+        discountAmount: Decimal?,
         category: String?
     ) {
         self.description = description
@@ -387,25 +443,55 @@ public struct ReceiptLineItem: Codable {
         self.category = category
     }
     
+    /// Alternative initializer for creating line items from string values
+    public init(
+        description: String,
+        sku: String?,
+        quantity: Double?,
+        unit: String?,
+        unitPriceString: String?,
+        totalPriceString: String,
+        discounted: Bool?,
+        discountAmountString: String?,
+        category: String?
+    ) throws {
+        let unitPriceDecimal = unitPriceString.flatMap { Decimal(string: $0) }
+        let discountAmountDecimal = discountAmountString.flatMap { Decimal(string: $0) }
+        
+        guard let totalPriceDecimal = Decimal(string: totalPriceString) else {
+            // Create a simple error since we're not in a decoder context
+            let error = NSError(
+                domain: "ReceiptLineItem",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Total price string must be a valid decimal number"]
+            )
+            throw error
+        }
+        
+        self.init(
+            description: description,
+            sku: sku,
+            quantity: quantity,
+            unit: unit,
+            unitPrice: unitPriceDecimal,
+            totalPrice: totalPriceDecimal,
+            discounted: discounted,
+            discountAmount: discountAmountDecimal,
+            category: category
+        )
+    }
+    
     /// Custom decoding to handle both string and numeric values
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
         // Helper function to decode a monetary value that could be a string or decimal
-        func decodeMonetaryValue(forKey key: CodingKeys) throws -> String? {
-            if let stringValue = try? container.decodeIfPresent(String.self, forKey: key) {
-                return stringValue
-            } else if let decimalValue = try? container.decode(Decimal.self, forKey: key) {
-                let formatter = NumberFormatter()
-                formatter.minimumFractionDigits = 2
-                formatter.maximumFractionDigits = 2
-                formatter.numberStyle = .decimal
-                
-                if let formattedValue = formatter.string(from: decimalValue as NSDecimalNumber) {
-                    return formattedValue.replacingOccurrences(of: formatter.groupingSeparator, with: "")
-                } else {
-                    return "\(decimalValue)"
-                }
+        func decodeDecimalValue(forKey key: CodingKeys) throws -> Decimal? {
+            if let decimalValue = try? container.decodeIfPresent(Decimal.self, forKey: key) {
+                return decimalValue
+            } else if let stringValue = try? container.decodeIfPresent(String.self, forKey: key),
+                      let decimalFromString = Decimal(string: stringValue) {
+                return decimalFromString
             }
             return nil
         }
@@ -420,24 +506,16 @@ public struct ReceiptLineItem: Codable {
         category = try container.decodeIfPresent(String.self, forKey: .category)
         discounted = try container.decodeIfPresent(Bool.self, forKey: .discounted)
         
-        // Decode monetary fields that could be string or number
-        unitPrice = try decodeMonetaryValue(forKey: .unitPrice)
-        discountAmount = try decodeMonetaryValue(forKey: .discountAmount)
+        // Decode monetary fields as Decimal
+        unitPrice = try decodeDecimalValue(forKey: .unitPrice)
+        discountAmount = try decodeDecimalValue(forKey: .discountAmount)
         
         // Decode required totalPrice field
-        if let totalPriceString = try? container.decode(String.self, forKey: .totalPrice) {
-            totalPrice = totalPriceString
-        } else if let totalPriceDecimal = try? container.decode(Decimal.self, forKey: .totalPrice) {
-            let formatter = NumberFormatter()
-            formatter.minimumFractionDigits = 2
-            formatter.maximumFractionDigits = 2
-            formatter.numberStyle = .decimal
-            
-            if let formattedPrice = formatter.string(from: totalPriceDecimal as NSDecimalNumber) {
-                totalPrice = formattedPrice.replacingOccurrences(of: formatter.groupingSeparator, with: "")
-            } else {
-                totalPrice = "\(totalPriceDecimal)"
-            }
+        if let totalPriceDecimal = try? container.decode(Decimal.self, forKey: .totalPrice) {
+            totalPrice = totalPriceDecimal
+        } else if let totalPriceString = try? container.decode(String.self, forKey: .totalPrice),
+                  let totalPriceDecimal = Decimal(string: totalPriceString) {
+            totalPrice = totalPriceDecimal
         } else {
             throw DecodingError.dataCorruptedError(
                 forKey: .totalPrice,
@@ -451,6 +529,22 @@ public struct ReceiptLineItem: Codable {
         case description, sku, quantity, unit, unitPrice, totalPrice
         case discounted, discountAmount, category
     }
+    
+    /// Custom encoding to ensure proper handling of Decimal values
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        // Encode all fields
+        try container.encode(description, forKey: .description)
+        try container.encodeIfPresent(sku, forKey: .sku)
+        try container.encodeIfPresent(quantity, forKey: .quantity)
+        try container.encodeIfPresent(unit, forKey: .unit)
+        try container.encodeIfPresent(unitPrice, forKey: .unitPrice)
+        try container.encode(totalPrice, forKey: .totalPrice)
+        try container.encodeIfPresent(discounted, forKey: .discounted)
+        try container.encodeIfPresent(discountAmount, forKey: .discountAmount)
+        try container.encodeIfPresent(category, forKey: .category)
+    }
 }
 
 /// Tax item on a receipt
@@ -461,31 +555,45 @@ public struct ReceiptTaxItem: Codable {
     /// Type of tax
     public let taxType: String?
     
-    /// Tax rate as string (e.g., "0.1" for 10%)
-    public let taxRate: String?
+    /// Tax rate as Decimal (e.g., 0.1 for 10%)
+    public let taxRate: Decimal?
     
-    /// Tax amount as string to preserve exact decimal representation
-    public let taxAmount: String
+    /// Tax amount as Decimal for precise financial calculations
+    public let taxAmount: Decimal
     
-    // Computed properties to access monetary values as Decimal
+    // Computed properties to access monetary values as formatted strings
     
-    /// Tax rate as Decimal
-    public var taxRateDecimal: Decimal? {
+    /// Tax rate as formatted string
+    public var taxRateString: String? {
         guard let taxRate = taxRate else { return nil }
-        return Decimal(string: taxRate)
+        return formatDecimal(taxRate)
     }
     
-    /// Tax amount as Decimal
-    public var taxAmountDecimal: Decimal? {
-        return Decimal(string: taxAmount)
+    /// Tax amount as formatted string
+    public var taxAmountString: String {
+        return formatDecimal(taxAmount)
+    }
+    
+    /// Helper function to format a Decimal value as a string
+    private func formatDecimal(_ value: Decimal) -> String {
+        let formatter = NumberFormatter()
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        formatter.numberStyle = .decimal
+        
+        if let formattedValue = formatter.string(from: value as NSDecimalNumber) {
+            return formattedValue.replacingOccurrences(of: formatter.groupingSeparator, with: "")
+        } else {
+            return "\(value)"
+        }
     }
     
     /// Standard initializer for creating tax items programmatically
     public init(
         taxName: String,
         taxType: String?,
-        taxRate: String?,
-        taxAmount: String
+        taxRate: Decimal?,
+        taxAmount: Decimal
     ) {
         self.taxName = taxName
         self.taxType = taxType
@@ -493,25 +601,44 @@ public struct ReceiptTaxItem: Codable {
         self.taxAmount = taxAmount
     }
     
+    /// Alternative initializer for creating tax items from string values
+    public init(
+        taxName: String,
+        taxType: String?,
+        taxRateString: String?,
+        taxAmountString: String
+    ) throws {
+        let taxRateDecimal = taxRateString.flatMap { Decimal(string: $0) }
+        
+        guard let taxAmountDecimal = Decimal(string: taxAmountString) else {
+            // Create a simple error since we're not in a decoder context
+            let error = NSError(
+                domain: "ReceiptTaxItem",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Tax amount string must be a valid decimal number"]
+            )
+            throw error
+        }
+        
+        self.init(
+            taxName: taxName,
+            taxType: taxType,
+            taxRate: taxRateDecimal,
+            taxAmount: taxAmountDecimal
+        )
+    }
+    
     /// Custom decoding to handle both string and numeric values
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
         // Helper function to decode a monetary value that could be a string or decimal
-        func decodeMonetaryValue(forKey key: CodingKeys) throws -> String? {
-            if let stringValue = try? container.decodeIfPresent(String.self, forKey: key) {
-                return stringValue
-            } else if let decimalValue = try? container.decode(Decimal.self, forKey: key) {
-                let formatter = NumberFormatter()
-                formatter.minimumFractionDigits = 2
-                formatter.maximumFractionDigits = 2
-                formatter.numberStyle = .decimal
-                
-                if let formattedValue = formatter.string(from: decimalValue as NSDecimalNumber) {
-                    return formattedValue.replacingOccurrences(of: formatter.groupingSeparator, with: "")
-                } else {
-                    return "\(decimalValue)"
-                }
+        func decodeDecimalValue(forKey key: CodingKeys) throws -> Decimal? {
+            if let decimalValue = try? container.decodeIfPresent(Decimal.self, forKey: key) {
+                return decimalValue
+            } else if let stringValue = try? container.decodeIfPresent(String.self, forKey: key),
+                      let decimalFromString = Decimal(string: stringValue) {
+                return decimalFromString
             }
             return nil
         }
@@ -522,23 +649,15 @@ public struct ReceiptTaxItem: Codable {
         // Decode optional fields
         taxType = try container.decodeIfPresent(String.self, forKey: .taxType)
         
-        // Decode tax rate which could be a string or number
-        taxRate = try decodeMonetaryValue(forKey: .taxRate)
+        // Decode tax rate which could be a string or decimal
+        taxRate = try decodeDecimalValue(forKey: .taxRate)
         
         // Decode required taxAmount field
-        if let taxAmountString = try? container.decode(String.self, forKey: .taxAmount) {
-            taxAmount = taxAmountString
-        } else if let taxAmountDecimal = try? container.decode(Decimal.self, forKey: .taxAmount) {
-            let formatter = NumberFormatter()
-            formatter.minimumFractionDigits = 2
-            formatter.maximumFractionDigits = 2
-            formatter.numberStyle = .decimal
-            
-            if let formattedAmount = formatter.string(from: taxAmountDecimal as NSDecimalNumber) {
-                taxAmount = formattedAmount.replacingOccurrences(of: formatter.groupingSeparator, with: "")
-            } else {
-                taxAmount = "\(taxAmountDecimal)"
-            }
+        if let taxAmountDecimal = try? container.decode(Decimal.self, forKey: .taxAmount) {
+            taxAmount = taxAmountDecimal
+        } else if let taxAmountString = try? container.decode(String.self, forKey: .taxAmount),
+                  let taxAmountDecimal = Decimal(string: taxAmountString) {
+            taxAmount = taxAmountDecimal
         } else {
             throw DecodingError.dataCorruptedError(
                 forKey: .taxAmount,
@@ -550,6 +669,17 @@ public struct ReceiptTaxItem: Codable {
     
     private enum CodingKeys: String, CodingKey {
         case taxName, taxType, taxRate, taxAmount
+    }
+    
+    /// Custom encoding to ensure proper handling of Decimal values
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        // Encode all fields
+        try container.encode(taxName, forKey: .taxName)
+        try container.encodeIfPresent(taxType, forKey: .taxType)
+        try container.encodeIfPresent(taxRate, forKey: .taxRate)
+        try container.encode(taxAmount, forKey: .taxAmount)
     }
 }
 
@@ -564,17 +694,31 @@ public struct ReceiptPaymentMethod: Codable {
     /// Last 4 digits of payment card
     public let lastDigits: String?
     
-    /// Amount paid with this method as string to preserve exact decimal representation
-    public let amount: String
+    /// Amount paid with this method as Decimal for precise financial calculations
+    public let amount: Decimal
     
     /// Payment transaction ID
     public let transactionId: String?
     
-    // Computed property to access amount as Decimal
+    // Computed property to access amount as a formatted string
     
-    /// Amount paid with this method as Decimal
-    public var amountDecimal: Decimal? {
-        return Decimal(string: amount)
+    /// Amount paid with this method as a formatted string
+    public var amountString: String {
+        return formatDecimal(amount)
+    }
+    
+    /// Helper function to format a Decimal value as a string
+    private func formatDecimal(_ value: Decimal) -> String {
+        let formatter = NumberFormatter()
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        formatter.numberStyle = .decimal
+        
+        if let formattedValue = formatter.string(from: value as NSDecimalNumber) {
+            return formattedValue.replacingOccurrences(of: formatter.groupingSeparator, with: "")
+        } else {
+            return "\(value)"
+        }
     }
     
     /// Standard initializer for creating payment methods programmatically
@@ -582,7 +726,7 @@ public struct ReceiptPaymentMethod: Codable {
         method: PaymentMethod,
         cardType: String?,
         lastDigits: String?,
-        amount: String,
+        amount: Decimal,
         transactionId: String?
     ) {
         self.method = method
@@ -590,6 +734,33 @@ public struct ReceiptPaymentMethod: Codable {
         self.lastDigits = lastDigits
         self.amount = amount
         self.transactionId = transactionId
+    }
+    
+    /// Alternative initializer for creating payment methods from string values
+    public init(
+        method: PaymentMethod,
+        cardType: String?,
+        lastDigits: String?,
+        amountString: String,
+        transactionId: String?
+    ) throws {
+        guard let amountDecimal = Decimal(string: amountString) else {
+            // Create a simple error since we're not in a decoder context
+            let error = NSError(
+                domain: "ReceiptPaymentMethod",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Amount string must be a valid decimal number"]
+            )
+            throw error
+        }
+        
+        self.init(
+            method: method,
+            cardType: cardType,
+            lastDigits: lastDigits,
+            amount: amountDecimal,
+            transactionId: transactionId
+        )
     }
     
     /// Custom decoding to handle both string and numeric values
@@ -605,19 +776,11 @@ public struct ReceiptPaymentMethod: Codable {
         transactionId = try container.decodeIfPresent(String.self, forKey: .transactionId)
         
         // Decode required amount field
-        if let amountString = try? container.decode(String.self, forKey: .amount) {
-            amount = amountString
-        } else if let amountDecimal = try? container.decode(Decimal.self, forKey: .amount) {
-            let formatter = NumberFormatter()
-            formatter.minimumFractionDigits = 2
-            formatter.maximumFractionDigits = 2
-            formatter.numberStyle = .decimal
-            
-            if let formattedAmount = formatter.string(from: amountDecimal as NSDecimalNumber) {
-                amount = formattedAmount.replacingOccurrences(of: formatter.groupingSeparator, with: "")
-            } else {
-                amount = "\(amountDecimal)"
-            }
+        if let amountDecimal = try? container.decode(Decimal.self, forKey: .amount) {
+            amount = amountDecimal
+        } else if let amountString = try? container.decode(String.self, forKey: .amount),
+                  let amountDecimal = Decimal(string: amountString) {
+            amount = amountDecimal
         } else {
             throw DecodingError.dataCorruptedError(
                 forKey: .amount,
@@ -629,6 +792,18 @@ public struct ReceiptPaymentMethod: Codable {
     
     private enum CodingKeys: String, CodingKey {
         case method, cardType, lastDigits, amount, transactionId
+    }
+    
+    /// Custom encoding to ensure proper handling of Decimal values
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        // Encode all fields
+        try container.encode(method, forKey: .method)
+        try container.encodeIfPresent(cardType, forKey: .cardType)
+        try container.encodeIfPresent(lastDigits, forKey: .lastDigits)
+        try container.encode(amount, forKey: .amount)
+        try container.encodeIfPresent(transactionId, forKey: .transactionId)
     }
 }
 
