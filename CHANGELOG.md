@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2025-05-17
+
 ### Changed
 - Changed model representations to store monetary values as Decimal types directly instead of strings
 - Updated Check and Receipt models to use Decimal for all amounts, prices, totals, and tax values
