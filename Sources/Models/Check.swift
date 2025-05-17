@@ -83,10 +83,12 @@ public struct Check: Codable {
     public let payer: String?
     
     /// Dollar amount of the check as a Decimal for precise financial calculations
-    public let amount: Decimal
+    public let amount: Decimal?
     
     /// Computed property to access amount as a formatted string
-    public var amountString: String {
+    public var amountString: String? {
+        guard let amount = amount else { return nil }
+        
         let formatter = NumberFormatter()
         formatter.minimumFractionDigits = 2
         formatter.maximumFractionDigits = 2
@@ -105,7 +107,7 @@ public struct Check: Codable {
         date: String,
         payee: String,
         payer: String?,
-        amount: Decimal,
+        amount: Decimal?,
         amountText: String?,
         memo: String?,
         bankName: String?,
@@ -146,7 +148,7 @@ public struct Check: Codable {
         date: String,
         payee: String,
         payer: String?,
-        amountString: String,
+        amountString: String?,
         amountText: String?,
         memo: String?,
         bankName: String?,
@@ -161,8 +163,8 @@ public struct Check: Codable {
         metadata: CheckMetadata?,
         confidence: Double
     ) {
-        // Convert string amount to Decimal or use 0 if it can't be converted
-        let decimalAmount = Decimal(string: amountString) ?? Decimal.zero
+        // Convert string amount to Decimal (can be nil)
+        let decimalAmount = amountString.flatMap { Decimal(string: $0) }
         
         self.init(
             checkNumber: checkNumber,
@@ -211,28 +213,19 @@ public struct Check: Codable {
         metadata = try container.decodeIfPresent(CheckMetadata.self, forKey: .metadata)
         confidence = try container.decode(Double.self, forKey: .confidence)
         
-        // Handle amount field that can be either string or Decimal
-        if let amountDecimal = try? container.decode(Decimal.self, forKey: .amount) {
-            // If it's already a Decimal, use it directly
-            amount = amountDecimal
-        } else if let amountString = try? container.decode(String.self, forKey: .amount) {
-            // If it's a string, convert to Decimal
-            if let decimal = Decimal(string: amountString) {
-                amount = decimal
-            } else {
-                throw DecodingError.dataCorruptedError(
-                    forKey: .amount,
-                    in: container,
-                    debugDescription: "String amount must be a valid decimal number"
-                )
+        // Helper function to decode a monetary value that could be a string or decimal
+        func decodeDecimalValue(forKey key: CodingKeys) throws -> Decimal? {
+            if let decimalValue = try? container.decodeIfPresent(Decimal.self, forKey: key) {
+                return decimalValue
+            } else if let stringValue = try? container.decodeIfPresent(String.self, forKey: key),
+                      let decimalFromString = Decimal(string: stringValue) {
+                return decimalFromString
             }
-        } else {
-            throw DecodingError.dataCorruptedError(
-                forKey: .amount,
-                in: container,
-                debugDescription: "Amount must be either a string or a decimal number"
-            )
+            return nil
         }
+        
+        // Decode amount as optional
+        amount = try decodeDecimalValue(forKey: .amount)
     }
     
     private enum CodingKeys: String, CodingKey {
@@ -250,7 +243,7 @@ public struct Check: Codable {
         try container.encode(date, forKey: .date)
         try container.encode(payee, forKey: .payee)
         try container.encodeIfPresent(payer, forKey: .payer)
-        try container.encode(amount, forKey: .amount)
+        try container.encodeIfPresent(amount, forKey: .amount)
         try container.encodeIfPresent(amountText, forKey: .amountText)
         try container.encodeIfPresent(memo, forKey: .memo)
         try container.encodeIfPresent(bankName, forKey: .bankName)

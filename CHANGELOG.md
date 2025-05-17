@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated Check and Receipt models to use Decimal for all amounts, prices, totals, and tax values
 - Added convenience initializers for backward compatibility with string values
 - Preserved string formatting capabilities through computed properties
+- Made all monetary and total fields optional (amount, total, totalPrice, taxAmount, etc.)
+- Updated decoders, encoders, and initializers to handle optional monetary values
+- Added null-safety in string formatting computed properties for all optional monetary fields
 
 ## [1.3.1] - 2025-05-17
 
