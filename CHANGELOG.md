@@ -5,6 +5,13 @@ All notable changes to the NolockOCR Swift package will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- Replaced Double with Decimal type for all monetary value decoding, improving precision for financial calculations
+- Updated JSON decoders to use Decimal instead of Double for amounts, prices, totals and tax values
+- Fixed number formatting to ensure consistent decimal places in monetary values
+
 ## [1.3.0] - 2025-05-13
 
 ### Added
