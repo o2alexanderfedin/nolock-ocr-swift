@@ -359,15 +359,12 @@ class OCRClientIntegrationTests: XCTestCase {
                     XCTAssertEqual(result.data.checkNumber, expected, "Check number should match expected value")
                 }
             case "amount":
-                if let expected = expectedValue as? String {
-                    XCTAssertEqual(result.data.amount, expected, "Amount should match expected value")
+                if let expected = expectedValue as? String, let decimal = Decimal(string: expected) {
+                    XCTAssertEqual(result.data.amount, decimal, "Amount should match expected value")
                 } else if let expected = expectedValue as? Double {
                     // For backward compatibility with existing test cases that might still use Double
-                    if let decimal = result.data.amountDecimal {
-                        XCTAssertEqual(NSDecimalNumber(decimal: decimal).doubleValue, expected, accuracy: 0.01, "Amount should match expected value")
-                    } else {
-                        XCTFail("Could not parse amount as Decimal")
-                    }
+                    let doubleValue = NSDecimalNumber(decimal: result.data.amount).doubleValue
+                    XCTAssertEqual(doubleValue, expected, accuracy: 0.01, "Amount should match expected value")
                 }
             case "date":
                 if let expected = expectedValue as? String {
@@ -383,7 +380,7 @@ class OCRClientIntegrationTests: XCTestCase {
         }
         
         // Log the response for debugging
-        print("Check processing result: number=\(result.data.checkNumber), amount=\(result.data.amount), as decimal=\(result.data.amountDecimal?.description ?? "N/A")")
+        print("Check processing result: number=\(result.data.checkNumber), amount=\(result.data.amount), as string=\(result.data.amountString)")
     }
     
     /// Verify receipt processing results
@@ -401,15 +398,12 @@ class OCRClientIntegrationTests: XCTestCase {
                     XCTAssertEqual(result.data.merchant.name, expected, "Merchant name should match expected value")
                 }
             case "totals.total":
-                if let expected = expectedValue as? String {
-                    XCTAssertEqual(result.data.totals.total, expected, "Total amount should match expected value")
+                if let expected = expectedValue as? String, let decimal = Decimal(string: expected) {
+                    XCTAssertEqual(result.data.totals.total, decimal, "Total amount should match expected value")
                 } else if let expected = expectedValue as? Double {
                     // For backward compatibility with existing test cases that might still use Double
-                    if let decimal = result.data.totals.totalDecimal {
-                        XCTAssertEqual(NSDecimalNumber(decimal: decimal).doubleValue, expected, accuracy: 0.01, "Total amount should match expected value")
-                    } else {
-                        XCTFail("Could not parse total amount as Decimal")
-                    }
+                    let doubleValue = NSDecimalNumber(decimal: result.data.totals.total).doubleValue
+                    XCTAssertEqual(doubleValue, expected, accuracy: 0.01, "Total amount should match expected value")
                 }
             case "timestamp":
                 if let expected = expectedValue as? String {
@@ -421,7 +415,7 @@ class OCRClientIntegrationTests: XCTestCase {
         }
         
         // Log the response for debugging
-        print("Receipt processing result: merchant=\(result.data.merchant.name), total=\(result.data.totals.total), as decimal=\(result.data.totals.totalDecimal?.description ?? "N/A")")
+        print("Receipt processing result: merchant=\(result.data.merchant.name), total=\(result.data.totals.total), as string=\(result.data.totals.totalString)")
     }
     
     /// Verify document processing results
