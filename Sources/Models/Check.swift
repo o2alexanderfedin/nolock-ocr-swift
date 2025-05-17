@@ -82,12 +82,23 @@ public struct Check: Codable {
     /// Person or entity who wrote/signed the check
     public let payer: String?
     
-    /// Dollar amount of the check as a string to preserve exact decimal representation
-    public let amount: String
+    /// Dollar amount of the check as a Decimal for precise financial calculations
+    public let amount: Decimal?
     
-    /// Computed property to access amount as Decimal
-    public var amountDecimal: Decimal? {
-        return Decimal(string: amount)
+    /// Computed property to access amount as a formatted string
+    public var amountString: String? {
+        guard let amount = amount else { return nil }
+        
+        let formatter = NumberFormatter()
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        formatter.numberStyle = .decimal
+        
+        if let formattedAmount = formatter.string(from: amount as NSDecimalNumber) {
+            return formattedAmount.replacingOccurrences(of: formatter.groupingSeparator, with: "")
+        } else {
+            return "\(amount)"
+        }
     }
     
     /// Standard initializer for creating checks programmatically
@@ -96,7 +107,7 @@ public struct Check: Codable {
         date: String,
         payee: String,
         payer: String?,
-        amount: String,
+        amount: Decimal?,
         amountText: String?,
         memo: String?,
         bankName: String?,
@@ -131,6 +142,52 @@ public struct Check: Codable {
         self.confidence = confidence
     }
     
+    /// Alternative initializer that accepts a string amount
+    public init(
+        checkNumber: String,
+        date: String,
+        payee: String,
+        payer: String?,
+        amountString: String?,
+        amountText: String?,
+        memo: String?,
+        bankName: String?,
+        routingNumber: String?,
+        accountNumber: String?,
+        checkType: CheckType?,
+        accountType: BankAccountType?,
+        signature: Bool?,
+        signatureText: String?,
+        fractionalCode: String?,
+        micrLine: String?,
+        metadata: CheckMetadata?,
+        confidence: Double
+    ) {
+        // Convert string amount to Decimal (can be nil)
+        let decimalAmount = amountString.flatMap { Decimal(string: $0) }
+        
+        self.init(
+            checkNumber: checkNumber,
+            date: date,
+            payee: payee,
+            payer: payer,
+            amount: decimalAmount,
+            amountText: amountText,
+            memo: memo,
+            bankName: bankName,
+            routingNumber: routingNumber,
+            accountNumber: accountNumber,
+            checkType: checkType,
+            accountType: accountType,
+            signature: signature,
+            signatureText: signatureText,
+            fractionalCode: fractionalCode,
+            micrLine: micrLine,
+            metadata: metadata,
+            confidence: confidence
+        )
+    }
+    
     /// Custom decoding to handle both string and numeric amount values
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -156,35 +213,50 @@ public struct Check: Codable {
         metadata = try container.decodeIfPresent(CheckMetadata.self, forKey: .metadata)
         confidence = try container.decode(Double.self, forKey: .confidence)
         
-        // Handle amount field that can be either string or Decimal
-        if let amountString = try? container.decode(String.self, forKey: .amount) {
-            // If it's already a string, use it directly
-            amount = amountString
-        } else if let amountDecimal = try? container.decode(Decimal.self, forKey: .amount) {
-            // If it's a decimal number, convert to string with proper formatting
-            let formatter = NumberFormatter()
-            formatter.minimumFractionDigits = 2
-            formatter.maximumFractionDigits = 2
-            formatter.numberStyle = .decimal
-            
-            if let formattedAmount = formatter.string(from: amountDecimal as NSDecimalNumber) {
-                amount = formattedAmount.replacingOccurrences(of: formatter.groupingSeparator, with: "")
-            } else {
-                amount = "\(amountDecimal)"
+        // Helper function to decode a monetary value that could be a string or decimal
+        func decodeDecimalValue(forKey key: CodingKeys) throws -> Decimal? {
+            if let decimalValue = try? container.decodeIfPresent(Decimal.self, forKey: key) {
+                return decimalValue
+            } else if let stringValue = try? container.decodeIfPresent(String.self, forKey: key),
+                      let decimalFromString = Decimal(string: stringValue) {
+                return decimalFromString
             }
-        } else {
-            throw DecodingError.dataCorruptedError(
-                forKey: .amount,
-                in: container,
-                debugDescription: "Amount must be either a string or a decimal number"
-            )
+            return nil
         }
+        
+        // Decode amount as optional
+        amount = try decodeDecimalValue(forKey: .amount)
     }
     
     private enum CodingKeys: String, CodingKey {
         case checkNumber, date, payee, payer, amount, amountText, memo, bankName
         case routingNumber, accountNumber, checkType, accountType, signature, signatureText
         case fractionalCode, micrLine, metadata, confidence
+    }
+    
+    /// Custom encoding to ensure proper handling of Decimal values
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        // Encode all fields
+        try container.encode(checkNumber, forKey: .checkNumber)
+        try container.encode(date, forKey: .date)
+        try container.encode(payee, forKey: .payee)
+        try container.encodeIfPresent(payer, forKey: .payer)
+        try container.encodeIfPresent(amount, forKey: .amount)
+        try container.encodeIfPresent(amountText, forKey: .amountText)
+        try container.encodeIfPresent(memo, forKey: .memo)
+        try container.encodeIfPresent(bankName, forKey: .bankName)
+        try container.encodeIfPresent(routingNumber, forKey: .routingNumber)
+        try container.encodeIfPresent(accountNumber, forKey: .accountNumber)
+        try container.encodeIfPresent(checkType, forKey: .checkType)
+        try container.encodeIfPresent(accountType, forKey: .accountType)
+        try container.encodeIfPresent(signature, forKey: .signature)
+        try container.encodeIfPresent(signatureText, forKey: .signatureText)
+        try container.encodeIfPresent(fractionalCode, forKey: .fractionalCode)
+        try container.encodeIfPresent(micrLine, forKey: .micrLine)
+        try container.encodeIfPresent(metadata, forKey: .metadata)
+        try container.encode(confidence, forKey: .confidence)
     }
     
     /// Written text amount of the check
