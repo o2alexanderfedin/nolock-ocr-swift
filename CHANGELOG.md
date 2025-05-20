@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.2] - 2025-05-17
+
+### Improved
+- Enhanced documentation with complete code examples and proper formatting
+- Replaced placeholder code in README with actual implementation examples
+- Updated Swift Package Manager integration example with realistic target names
+- Improved SwiftUI example with comprehensive UI implementation
+- Fixed all URLs and references in documentation
+
 ## [1.4.1] - 2025-05-17
 
 ### Added

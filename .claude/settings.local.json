@@ -14,7 +14,8 @@
       "Bash(git branch:*)",
       "Bash(git reset:*)",
       "Bash(mkdir:*)",
-      "Bash(xcrun:*)"
+      "Bash(xcrun:*)",
+      "Bash(grep:*)"
     ],
     "deny": []
   }
