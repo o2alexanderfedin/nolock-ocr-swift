@@ -1,7 +1,7 @@
 // swift-tools-version:5.9
 //
 // NolockOCR Swift Package
-// https://github.com/o2alexanderfedin/OCRChecksServer
+// https://github.com/o2alexanderfedin/nolock-ocr-swift
 //
 // Copyright (c) 2025 Nolock.social
 // Licensed under MIT License
