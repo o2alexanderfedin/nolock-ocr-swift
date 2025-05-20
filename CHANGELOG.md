@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1] - 2025-05-17
+
+### Added
+- VS Code configuration for Swift development
+- Added launch.json, tasks.json, and settings.json for optimal IDE experience
+- Integrated debugging and testing support for VS Code
+
 ## [1.4.0] - 2025-05-17
 
 ### Changed

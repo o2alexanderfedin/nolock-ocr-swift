@@ -1,0 +1,11 @@
+{
+    "recommendations": [
+        "sswg.swift-lang",
+        "vadimcn.vscode-lldb",
+        "xaver.clang-format",
+        "vknabel.vscode-swift-development-environment",
+        "vknabel.vscode-swiftformat",
+        "vknabel.vscode-swiftlint",
+        "asuka.vscode-swift-test-explorer"
+    ]
+}
