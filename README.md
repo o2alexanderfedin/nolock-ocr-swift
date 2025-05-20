@@ -27,21 +27,25 @@ Add the package to your project using Swift Package Manager:
 
 #### In Xcode:
 1. Go to **File** > **Add Package Dependencies...**
-2. Enter the package URL: `https://github.com/nolock-social/nolock-ocr-swift.git`
+2. Enter the package URL: `https://github.com/o2alexanderfedin/nolock-ocr-swift.git`
 3. Select the version rule (Exact, Up to Next Major, etc.)
 4. Click **Add Package**
 
 #### In Package.swift:
 ```swift
 dependencies: [
-    .package(url: "https://github.com/nolock-social/nolock-ocr-swift.git", from: "1.0.0"),
+    .package(url: "https://github.com/o2alexanderfedin/nolock-ocr-swift.git", from: "1.4.2"),
 ],
 targets: [
     .target(
-        name: "YourTarget",
+        name: "CheckScanner",
         dependencies: [
             .product(name: "NolockOCR", package: "nolock-ocr-swift")
         ]
+    ),
+    .testTarget(
+        name: "CheckScannerTests",
+        dependencies: ["CheckScanner"]
     )
 ]
 ```
@@ -74,7 +78,7 @@ sessionConfig.timeoutIntervalForRequest = 30
 let session = URLSession(configuration: sessionConfig)
 
 let customUrlClient = NolockOCR.createClient(
-    environment: .custom(URL(string: "https://my-ocr-api.example.com")!),
+    environment: .custom(URL(string: "https://ocr-api.nolock.social")!),
     session: session
 )
 ```
@@ -86,8 +90,13 @@ All API methods support Swift's modern concurrency model with async/await, makin
 ### Process a Check with async/await
 
 ```swift
-// Get your check image data
-let imageData = // ... your image data
+#if os(iOS)
+// Load image data from your app's bundle
+let imageData = UIImage(named: "check.jpg")?.jpegData(compressionQuality: 0.9) ?? Data()
+#elseif os(macOS)
+// Load image data from a file
+let imageData = try Data(contentsOf: URL(fileURLWithPath: "/path/to/check.jpg"))
+#endif
 
 do {
     let response = try await client.processCheck(imageData: imageData)
@@ -97,7 +106,9 @@ do {
     print("Check Number: \(check.checkNumber)")
     print("Date: \(check.date)")
     print("Payee: \(check.payee)")
-    print("Amount: $\(check.amount)")
+    if let amount = check.amount {
+        print("Amount: $\(amount)")
+    }
     
     // Access confidence scores
     let confidence = response.confidence
@@ -110,8 +121,13 @@ do {
 ### Process a Receipt with async/await
 
 ```swift
-// Get your receipt image data
-let imageData = // ... your image data
+#if os(iOS)
+// Load image data from your app's bundle
+let imageData = UIImage(named: "receipt.jpg")?.jpegData(compressionQuality: 0.9) ?? Data()
+#elseif os(macOS)
+// Load image data from a file
+let imageData = try Data(contentsOf: URL(fileURLWithPath: "/path/to/receipt.jpg"))
+#endif
 
 do {
     let response = try await client.processReceipt(imageData: imageData)
@@ -119,12 +135,18 @@ do {
     // Access receipt data
     let receipt = response.data
     print("Merchant: \(receipt.merchant.name)")
-    print("Total: \(receipt.totals.total) \(receipt.currency)")
+    if let total = receipt.totals.total {
+        print("Total: \(total) \(receipt.currency)")
+    }
     
     // Print line items if available
     if let items = receipt.items {
         for item in items {
-            print("- \(item.description): $\(item.totalPrice)")
+            if let price = item.totalPrice {
+                print("- \(item.description): $\(price)")
+            } else {
+                print("- \(item.description)")
+            }
         }
     }
 } catch {
@@ -135,8 +157,13 @@ do {
 ### Use the Universal Document Processing Endpoint with async/await
 
 ```swift
-// Get your document image data
-let imageData = // ... your image data
+#if os(iOS)
+// Load image data from your app's bundle
+let imageData = UIImage(named: "document.jpg")?.jpegData(compressionQuality: 0.9) ?? Data()
+#elseif os(macOS)
+// Load image data from a file
+let imageData = try Data(contentsOf: URL(fileURLWithPath: "/path/to/document.jpg"))
+#endif
 
 do {
     // Process as a receipt but let the API determine the actual type
@@ -149,13 +176,17 @@ do {
     case .check:
         if let check = response.data as? Check {
             print("Check Number: \(check.checkNumber)")
-            print("Amount: $\(check.amount)")
+            if let amount = check.amount {
+                print("Amount: $\(amount)")
+            }
         }
         
     case .receipt:
         if let receipt = response.data as? Receipt {
             print("Merchant: \(receipt.merchant.name)")
-            print("Total: \(receipt.totals.total) \(receipt.currency)")
+            if let total = receipt.totals.total {
+                print("Total: \(total) \(receipt.currency)")
+            }
         }
     }
 } catch {
@@ -183,8 +214,13 @@ For backward compatibility, the library also supports traditional completion han
 ### Process a Check with Completion Handler
 
 ```swift
-// Get your check image data
-let imageData = // ... your image data
+#if os(iOS)
+// Load image data from your app's bundle
+let imageData = UIImage(named: "check.jpg")?.jpegData(compressionQuality: 0.9) ?? Data()
+#elseif os(macOS)
+// Load image data from a file
+let imageData = try Data(contentsOf: URL(fileURLWithPath: "/path/to/check.jpg"))
+#endif
 
 client.processCheck(imageData: imageData) { result in
     switch result {
@@ -194,7 +230,9 @@ client.processCheck(imageData: imageData) { result in
         print("Check Number: \(check.checkNumber)")
         print("Date: \(check.date)")
         print("Payee: \(check.payee)")
-        print("Amount: $\(check.amount)")
+        if let amount = check.amount {
+            print("Amount: $\(amount)")
+        }
         
         // Access confidence scores
         let confidence = response.confidence
@@ -209,8 +247,13 @@ client.processCheck(imageData: imageData) { result in
 ### Process a Receipt with Completion Handler
 
 ```swift
-// Get your receipt image data
-let imageData = // ... your image data
+#if os(iOS)
+// Load image data from your app's bundle
+let imageData = UIImage(named: "receipt.jpg")?.jpegData(compressionQuality: 0.9) ?? Data()
+#elseif os(macOS)
+// Load image data from a file
+let imageData = try Data(contentsOf: URL(fileURLWithPath: "/path/to/receipt.jpg"))
+#endif
 
 client.processReceipt(imageData: imageData) { result in
     switch result {
@@ -218,12 +261,18 @@ client.processReceipt(imageData: imageData) { result in
         // Access receipt data
         let receipt = response.data
         print("Merchant: \(receipt.merchant.name)")
-        print("Total: \(receipt.totals.total) \(receipt.currency)")
+        if let total = receipt.totals.total {
+            print("Total: \(total) \(receipt.currency)")
+        }
         
         // Print line items if available
         if let items = receipt.items {
             for item in items {
-                print("- \(item.description): $\(item.totalPrice)")
+                if let price = item.totalPrice {
+                    print("- \(item.description): $\(price)")
+                } else {
+                    print("- \(item.description)")
+                }
             }
         }
         
@@ -309,7 +358,27 @@ struct CheckScannerView: View {
                 }
                 .foregroundColor(.red)
             } else if let check = checkData {
-                // Display check data...
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Check Number: \(check.checkNumber)")
+                        .font(.headline)
+                    Text("Date: \(check.date)")
+                    Text("Payee: \(check.payee)")
+                    if let amount = check.amount {
+                        Text("Amount: $\(amount, specifier: "%.2f")")
+                            .fontWeight(.bold)
+                    }
+                    if let routingNumber = check.routingNumber {
+                        Text("Routing: \(routingNumber)")
+                            .font(.caption)
+                    }
+                    if let accountNumber = check.accountNumber {
+                        Text("Account: \(accountNumber)")
+                            .font(.caption)
+                    }
+                }
+                .padding()
+                .background(Color(.secondarySystemBackground))
+                .cornerRadius(8)
             } else if let error = error {
                 Text("Error: \(error.localizedDescription)")
                     .foregroundColor(.red)
@@ -437,8 +506,16 @@ struct CheckScannerView: View {
                 VStack(alignment: .leading) {
                     Text("Check Number: \(check.checkNumber)")
                     Text("Payee: \(check.payee)")
-                    Text("Amount: $\(check.amount, specifier: "%.2f")")
-                    // More fields...
+                    if let amount = check.amount {
+                        Text("Amount: $\(amount, specifier: "%.2f")")
+                    }
+                    Text("Date: \(check.date)")
+                    if let payer = check.payer {
+                        Text("From: \(payer)")
+                    }
+                    if let bankName = check.bankName {
+                        Text("Bank: \(bankName)")
+                    }
                 }
             } else if let error = error {
                 Text("Error: \(error.localizedDescription)")
@@ -479,7 +556,8 @@ This package is available under the MIT License. See the [LICENSE](LICENSE) file
 
 - **Website**: [https://nolock.social](https://nolock.social)
 - **Support**: [support@nolock.social](mailto:support@nolock.social)
-- **Repository**: [https://github.com/nolock-social/nolock-ocr-swift](https://github.com/nolock-social/nolock-ocr-swift)
+- **Documentation**: [https://docs.nolock.social/ocr-api](https://docs.nolock.social/ocr-api)
+- **Repository**: [https://github.com/o2alexanderfedin/nolock-ocr-swift](https://github.com/o2alexanderfedin/nolock-ocr-swift)
 
 ## Authors
 
