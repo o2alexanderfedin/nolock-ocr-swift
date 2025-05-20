@@ -97,7 +97,9 @@ do {
     print("Check Number: \(check.checkNumber)")
     print("Date: \(check.date)")
     print("Payee: \(check.payee)")
-    print("Amount: $\(check.amount)")
+    if let amount = check.amount {
+        print("Amount: $\(amount)")
+    }
     
     // Access confidence scores
     let confidence = response.confidence
@@ -119,12 +121,18 @@ do {
     // Access receipt data
     let receipt = response.data
     print("Merchant: \(receipt.merchant.name)")
-    print("Total: \(receipt.totals.total) \(receipt.currency)")
+    if let total = receipt.totals.total {
+        print("Total: \(total) \(receipt.currency)")
+    }
     
     // Print line items if available
     if let items = receipt.items {
         for item in items {
-            print("- \(item.description): $\(item.totalPrice)")
+            if let price = item.totalPrice {
+                print("- \(item.description): $\(price)")
+            } else {
+                print("- \(item.description)")
+            }
         }
     }
 } catch {
@@ -149,13 +157,17 @@ do {
     case .check:
         if let check = response.data as? Check {
             print("Check Number: \(check.checkNumber)")
-            print("Amount: $\(check.amount)")
+            if let amount = check.amount {
+                print("Amount: $\(amount)")
+            }
         }
         
     case .receipt:
         if let receipt = response.data as? Receipt {
             print("Merchant: \(receipt.merchant.name)")
-            print("Total: \(receipt.totals.total) \(receipt.currency)")
+            if let total = receipt.totals.total {
+                print("Total: \(total) \(receipt.currency)")
+            }
         }
     }
 } catch {
@@ -194,7 +206,9 @@ client.processCheck(imageData: imageData) { result in
         print("Check Number: \(check.checkNumber)")
         print("Date: \(check.date)")
         print("Payee: \(check.payee)")
-        print("Amount: $\(check.amount)")
+        if let amount = check.amount {
+            print("Amount: $\(amount)")
+        }
         
         // Access confidence scores
         let confidence = response.confidence
@@ -218,12 +232,18 @@ client.processReceipt(imageData: imageData) { result in
         // Access receipt data
         let receipt = response.data
         print("Merchant: \(receipt.merchant.name)")
-        print("Total: \(receipt.totals.total) \(receipt.currency)")
+        if let total = receipt.totals.total {
+            print("Total: \(total) \(receipt.currency)")
+        }
         
         // Print line items if available
         if let items = receipt.items {
             for item in items {
-                print("- \(item.description): $\(item.totalPrice)")
+                if let price = item.totalPrice {
+                    print("- \(item.description): $\(price)")
+                } else {
+                    print("- \(item.description)")
+                }
             }
         }
         
@@ -437,7 +457,9 @@ struct CheckScannerView: View {
                 VStack(alignment: .leading) {
                     Text("Check Number: \(check.checkNumber)")
                     Text("Payee: \(check.payee)")
-                    Text("Amount: $\(check.amount, specifier: "%.2f")")
+                    if let amount = check.amount {
+                        Text("Amount: $\(amount, specifier: "%.2f")")
+                    }
                     // More fields...
                 }
             } else if let error = error {
