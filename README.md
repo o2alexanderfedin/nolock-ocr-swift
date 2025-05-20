@@ -38,10 +38,14 @@ dependencies: [
 ],
 targets: [
     .target(
-        name: "YourTarget",
+        name: "CheckScanner",
         dependencies: [
             .product(name: "NolockOCR", package: "nolock-ocr-swift")
         ]
+    ),
+    .testTarget(
+        name: "CheckScannerTests",
+        dependencies: ["CheckScanner"]
     )
 ]
 ```
