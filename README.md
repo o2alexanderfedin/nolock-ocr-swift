@@ -27,20 +27,20 @@ Add the package to your project using Swift Package Manager:
 
 #### In Xcode:
 1. Go to **File** > **Add Package Dependencies...**
-2. Enter the package URL: `https://github.com/o2alexanderfedin/OCRChecksServer.git`
+2. Enter the package URL: `https://github.com/nolock-social/nolock-ocr-swift.git`
 3. Select the version rule (Exact, Up to Next Major, etc.)
 4. Click **Add Package**
 
 #### In Package.swift:
 ```swift
 dependencies: [
-    .package(url: "https://github.com/o2alexanderfedin/OCRChecksServer.git", from: "1.45.0"),
+    .package(url: "https://github.com/nolock-social/nolock-ocr-swift.git", from: "1.0.0"),
 ],
 targets: [
     .target(
         name: "YourTarget",
         dependencies: [
-            .product(name: "NolockOCR", package: "OCRChecksServer")
+            .product(name: "NolockOCR", package: "nolock-ocr-swift")
         ]
     )
 ]
@@ -479,8 +479,7 @@ This package is available under the MIT License. See the [LICENSE](LICENSE) file
 
 - **Website**: [https://nolock.social](https://nolock.social)
 - **Support**: [support@nolock.social](mailto:support@nolock.social)
-- **Documentation**: [https://docs.nolock.social/ocr-api](https://docs.nolock.social/ocr-api)
-- **Repository**: [https://github.com/o2alexanderfedin/OCRChecksServer](https://github.com/o2alexanderfedin/OCRChecksServer)
+- **Repository**: [https://github.com/nolock-social/nolock-ocr-swift](https://github.com/nolock-social/nolock-ocr-swift)
 
 ## Authors
 
@@ -489,4 +488,4 @@ This package is available under the MIT License. See the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-This library uses the Mistral AI OCR backend service for image processing.
+This library uses the Nolock OCR API, powered by Mistral AI for image processing.
