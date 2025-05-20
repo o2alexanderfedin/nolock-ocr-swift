@@ -74,7 +74,7 @@ sessionConfig.timeoutIntervalForRequest = 30
 let session = URLSession(configuration: sessionConfig)
 
 let customUrlClient = NolockOCR.createClient(
-    environment: .custom(URL(string: "https://my-ocr-api.example.com")!),
+    environment: .custom(URL(string: "https://ocr-api.nolock.social")!),
     session: session
 )
 ```
@@ -86,8 +86,13 @@ All API methods support Swift's modern concurrency model with async/await, makin
 ### Process a Check with async/await
 
 ```swift
-// Get your check image data
-let imageData = // ... your image data
+#if os(iOS)
+// Load image data from your app's bundle
+let imageData = UIImage(named: "check.jpg")?.jpegData(compressionQuality: 0.9) ?? Data()
+#elseif os(macOS)
+// Load image data from a file
+let imageData = try Data(contentsOf: URL(fileURLWithPath: "/path/to/check.jpg"))
+#endif
 
 do {
     let response = try await client.processCheck(imageData: imageData)
@@ -112,8 +117,13 @@ do {
 ### Process a Receipt with async/await
 
 ```swift
-// Get your receipt image data
-let imageData = // ... your image data
+#if os(iOS)
+// Load image data from your app's bundle
+let imageData = UIImage(named: "receipt.jpg")?.jpegData(compressionQuality: 0.9) ?? Data()
+#elseif os(macOS)
+// Load image data from a file
+let imageData = try Data(contentsOf: URL(fileURLWithPath: "/path/to/receipt.jpg"))
+#endif
 
 do {
     let response = try await client.processReceipt(imageData: imageData)
@@ -143,8 +153,13 @@ do {
 ### Use the Universal Document Processing Endpoint with async/await
 
 ```swift
-// Get your document image data
-let imageData = // ... your image data
+#if os(iOS)
+// Load image data from your app's bundle
+let imageData = UIImage(named: "document.jpg")?.jpegData(compressionQuality: 0.9) ?? Data()
+#elseif os(macOS)
+// Load image data from a file
+let imageData = try Data(contentsOf: URL(fileURLWithPath: "/path/to/document.jpg"))
+#endif
 
 do {
     // Process as a receipt but let the API determine the actual type
@@ -195,8 +210,13 @@ For backward compatibility, the library also supports traditional completion han
 ### Process a Check with Completion Handler
 
 ```swift
-// Get your check image data
-let imageData = // ... your image data
+#if os(iOS)
+// Load image data from your app's bundle
+let imageData = UIImage(named: "check.jpg")?.jpegData(compressionQuality: 0.9) ?? Data()
+#elseif os(macOS)
+// Load image data from a file
+let imageData = try Data(contentsOf: URL(fileURLWithPath: "/path/to/check.jpg"))
+#endif
 
 client.processCheck(imageData: imageData) { result in
     switch result {
@@ -223,8 +243,13 @@ client.processCheck(imageData: imageData) { result in
 ### Process a Receipt with Completion Handler
 
 ```swift
-// Get your receipt image data
-let imageData = // ... your image data
+#if os(iOS)
+// Load image data from your app's bundle
+let imageData = UIImage(named: "receipt.jpg")?.jpegData(compressionQuality: 0.9) ?? Data()
+#elseif os(macOS)
+// Load image data from a file
+let imageData = try Data(contentsOf: URL(fileURLWithPath: "/path/to/receipt.jpg"))
+#endif
 
 client.processReceipt(imageData: imageData) { result in
     switch result {
@@ -329,7 +354,27 @@ struct CheckScannerView: View {
                 }
                 .foregroundColor(.red)
             } else if let check = checkData {
-                // Display check data...
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Check Number: \(check.checkNumber)")
+                        .font(.headline)
+                    Text("Date: \(check.date)")
+                    Text("Payee: \(check.payee)")
+                    if let amount = check.amount {
+                        Text("Amount: $\(amount, specifier: "%.2f")")
+                            .fontWeight(.bold)
+                    }
+                    if let routingNumber = check.routingNumber {
+                        Text("Routing: \(routingNumber)")
+                            .font(.caption)
+                    }
+                    if let accountNumber = check.accountNumber {
+                        Text("Account: \(accountNumber)")
+                            .font(.caption)
+                    }
+                }
+                .padding()
+                .background(Color(.secondarySystemBackground))
+                .cornerRadius(8)
             } else if let error = error {
                 Text("Error: \(error.localizedDescription)")
                     .foregroundColor(.red)
@@ -460,7 +505,13 @@ struct CheckScannerView: View {
                     if let amount = check.amount {
                         Text("Amount: $\(amount, specifier: "%.2f")")
                     }
-                    // More fields...
+                    Text("Date: \(check.date)")
+                    if let payer = check.payer {
+                        Text("From: \(payer)")
+                    }
+                    if let bankName = check.bankName {
+                        Text("Bank: \(bankName)")
+                    }
                 }
             } else if let error = error {
                 Text("Error: \(error.localizedDescription)")
