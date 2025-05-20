@@ -12,7 +12,9 @@
       "Bash(git merge:*)",
       "Bash(git tag:*)",
       "Bash(git branch:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(mkdir:*)",
+      "Bash(xcrun:*)"
     ],
     "deny": []
   }
