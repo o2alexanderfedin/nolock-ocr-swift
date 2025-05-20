@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.3] - 2025-05-17
+
+### Fixed
+- Updated repository URL in Package.swift to match the correct GitHub repository
+
 ## [1.4.2] - 2025-05-17
 
 ### Improved
