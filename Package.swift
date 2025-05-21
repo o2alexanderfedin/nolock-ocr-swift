@@ -42,7 +42,14 @@ let package = Package(
             name: "NolockOCRTests",
             dependencies: ["NolockOCR"],
             path: "Tests",
-            exclude: ["README.md"]),
+            exclude: ["README.md"],
+            resources: [
+                .process("Resources/fredmeyer-receipt.jpg"),
+                .process("Resources/fredmeyer-receipt-2.jpg"),
+                .process("Resources/rental-bill.jpg"),
+                .process("Resources/pge-bill.HEIC"),
+                .process("Resources/promo-check.HEIC")
+            ]),
     ],
     swiftLanguageVersions: [.v5]
 )

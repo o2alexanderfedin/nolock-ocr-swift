@@ -1,6 +1,36 @@
 import XCTest
 @testable import NolockOCR
 
+// Add test image helper directly to this file
+fileprivate enum OCRClientTestHelper {
+    static var bundle: Bundle { Bundle.module }
+    
+    static var receiptImage: Data {
+        let url = bundle.url(forResource: "fredmeyer-receipt.jpg", withExtension: nil)!
+        return try! Data(contentsOf: url)
+    }
+    
+    static var receiptImage2: Data {
+        let url = bundle.url(forResource: "fredmeyer-receipt-2.jpg", withExtension: nil)!
+        return try! Data(contentsOf: url)
+    }
+    
+    static var billImage: Data {
+        let url = bundle.url(forResource: "rental-bill.jpg", withExtension: nil)!
+        return try! Data(contentsOf: url)
+    }
+    
+    static var heicBillImage: Data {
+        let url = bundle.url(forResource: "pge-bill.HEIC", withExtension: nil)!
+        return try! Data(contentsOf: url)
+    }
+    
+    static var heicCheckImage: Data {
+        let url = bundle.url(forResource: "promo-check.HEIC", withExtension: nil)!
+        return try! Data(contentsOf: url)
+    }
+}
+
 /// Comprehensive unit tests for OCRClient that don't invoke the actual remote service
 class OCRClientUnitTests: XCTestCase {
     // Mock objects
@@ -160,9 +190,9 @@ class OCRClientUnitTests: XCTestCase {
             data: checkResponseJSON.data(using: .utf8)!
         )
         
-        // Execute request with format and filename
+        // Execute request with format and filename, using a real image
         _ = try? await client.processCheck(
-            imageData: Data(),
+            imageData: OCRClientTestHelper.receiptImage,
             format: .pdf,
             filename: "test-check.pdf"
         )
@@ -187,8 +217,8 @@ class OCRClientUnitTests: XCTestCase {
             data: receiptResponseJSON.data(using: .utf8)!
         )
         
-        // Execute request - default format, no filename
-        _ = try? await client.processReceipt(imageData: Data())
+        // Execute request - default format, no filename, using real image
+        _ = try? await client.processReceipt(imageData: OCRClientTestHelper.receiptImage2)
         
         // Verify URL
         XCTAssertEqual(mockSession.lastRequestURL?.path, "/receipt")
@@ -396,9 +426,9 @@ class OCRClientUnitTests: XCTestCase {
             data: errorResponseJSON.data(using: .utf8)!
         )
         
-        // Execute request and verify error
+        // Execute request with real image data and verify error
         do {
-            _ = try await client.processCheck(imageData: Data())
+            _ = try await client.processCheck(imageData: OCRClientTestHelper.billImage)
             XCTFail("Expected error was not thrown")
         } catch let error as OCRError {
             XCTAssertEqual(error.error, "Invalid image format or corrupted file")
@@ -576,6 +606,30 @@ class OCRClientUnitTests: XCTestCase {
         // Try cancelling again, should return false as no task is active
         let secondCancellation = client.cancelProcessing()
         XCTAssertFalse(secondCancellation, "Second cancellation should return false")
+    }
+    
+    /// Test HEIC image processing
+    func testHEICImageProcessing() async {
+        // Prepare mock response
+        mockSession.mockResponse = createMockResponse(
+            urlString: "https://ocr-checks-worker.af-4a0.workers.dev/check",
+            statusCode: 200,
+            data: checkResponseJSON.data(using: .utf8)!
+        )
+        
+        // Execute request with mock HEIC data
+        // Since we're not actually testing the conversion (ImageProcessor tests cover that)
+        // we just need to make sure the client attempts to process it
+        _ = try? await client.processCheck(
+            imageData: OCRClientTestHelper.heicCheckImage,
+            format: .heic
+        )
+        
+        // Verify request was made
+        XCTAssertNotNil(mockSession.lastRequest, "Request should be made with HEIC image")
+        
+        // Verify Content-Type
+        XCTAssertEqual(mockSession.lastRequest?.value(forHTTPHeaderField: "Content-Type"), "image/*")
     }
     
     // MARK: - Completion Handler Tests
