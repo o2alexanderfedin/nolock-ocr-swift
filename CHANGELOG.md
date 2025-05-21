@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2025-05-21
+
+### Added
+- Added MoneyFormatter utility for standardized decimal handling
+- Added EndpointBuilder for consistent URL construction
+- Added SafeDecodableEnum protocol for standardized enum fallback behavior
+- Added ImageProcessor service for centralized image format handling
+
+### Changed
+- Refactored codebase to follow DRY and KISS principles
+- Removed duplicated decimal formatting code across model files
+- Standardized URL construction for all API endpoints
+- Centralized enum fallback behavior to improve maintainability
+- Moved image format detection and conversion logic to dedicated service
+
 ## [1.4.3] - 2025-05-17
 
 ### Fixed
