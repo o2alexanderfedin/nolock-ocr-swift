@@ -15,7 +15,9 @@
       "Bash(git reset:*)",
       "Bash(mkdir:*)",
       "Bash(xcrun:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(rm:*)",
+      "Bash(git push:*)"
     ],
     "deny": []
   }

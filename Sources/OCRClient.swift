@@ -11,17 +11,7 @@ import ImageIO
 import CoreFoundation
 #endif
 
-/// Format type for document processing
-public enum DocumentFormat: String {
-    case image = "image"
-    case pdf = "pdf"
-}
-
-/// Document type for universal processing endpoint
-public enum DocumentType: String, Codable {
-    case check = "check"
-    case receipt = "receipt"
-}
+// We now use the types from Models/Common.swift
 
 /// Universal document processing response
 public struct DocumentResponse: Codable {
@@ -99,11 +89,7 @@ public protocol URLSessionProtocol {
 /// Extend URLSession to conform to the protocol
 extension URLSession: URLSessionProtocol {}
 
-/// Custom error type for task cancellation
-public enum OCRClientError: Error, Equatable {
-    case taskCancelled
-    case noActiveTask
-}
+// We now use the types from Models/Errors/OCRClientError.swift
 
 /// Main client for the OCR Checks Server API
 public class OCRClient {
@@ -116,33 +102,8 @@ public class OCRClient {
     /// Cancel token to track task cancellation in async/await API
     private var isCancelled = false
     
-    /// Available server environments for the API
-    public enum Environment {
-        /// Production server at ocr-checks-worker.af-4a0.workers.dev
-        case production
-        
-        /// Development server at ocr-checks-worker-dev.af-4a0.workers.dev
-        case development
-        
-        /// Local development server at http://localhost:8787
-        case local
-        
-        /// Custom server URL
-        case custom(URL)
-        
-        var url: URL {
-            switch self {
-            case .production:
-                return URL(string: "https://ocr-checks-worker.af-4a0.workers.dev")!
-            case .development:
-                return URL(string: "https://ocr-checks-worker-dev.af-4a0.workers.dev")!
-            case .local:
-                return URL(string: "http://localhost:8787")!
-            case .custom(let url):
-                return url
-            }
-        }
-    }
+    // Using ClientEnvironment from Core/ClientEnvironment.swift
+    public typealias Environment = ClientEnvironment
     
     /// Initialize a new OCR client with the specified environment
     /// - Parameter environment: The server environment to use
