@@ -1,15 +1,6 @@
 import Foundation
 
-// Required for image processing
-#if canImport(UIKit) && !os(macOS)
-import UIKit
-#endif
-
-#if canImport(AppKit) && os(macOS)
-import AppKit
-import ImageIO
-import CoreFoundation
-#endif
+// Note: Image processing is now handled by ImageProcessor in Core directory
 
 // We now use the types from Models/Common.swift
 
@@ -106,15 +97,23 @@ public class OCRClient {
     /// Cancel token to track task cancellation in async/await API
     private var isCancelled = false
     
+    /// URL builder for constructing endpoint URLs
+    private let endpointBuilder: EndpointBuilder
+    
+    /// Image processor for handling image format conversion
+    private let imageProcessor: ImageProcessing
+    
     // Using ClientEnvironment from Core/ClientEnvironment.swift
     public typealias Environment = ClientEnvironment
     
     /// Initialize a new OCR client with the specified environment
     /// - Parameter environment: The server environment to use
     /// - Parameter session: URLSession for network requests (defaults to shared session)
-    public init(environment: Environment = .production, session: URLSessionProtocol = URLSession.shared) {
+    public init(environment: Environment = .production, session: URLSessionProtocol = URLSession.shared, imageProcessor: ImageProcessing = ImageProcessor.shared) {
         self.baseURL = environment.url
         self.session = session
+        self.endpointBuilder = EndpointBuilder(baseURL: environment.url)
+        self.imageProcessor = imageProcessor
         self.activeTask = nil
         self.isCancelled = false
     }
@@ -150,18 +149,15 @@ public class OCRClient {
         format: DocumentFormat = .image,
         filename: String? = nil
     ) async throws -> CheckResponse {
-        var urlComponents = URLComponents(string: baseURL.appendingPathComponent("check").absoluteString)!
-        var queryItems = [URLQueryItem(name: "format", value: format.rawValue)]
+        let parameters: [String: String?] = [
+            "format": format.rawValue,
+            "filename": filename
+        ]
         
-        if let filename = filename {
-            queryItems.append(URLQueryItem(name: "filename", value: filename))
-        }
-        
-        urlComponents.queryItems = queryItems
-        
-        guard let url = urlComponents.url else {
-            throw OCRError(error: "Invalid URL")
-        }
+        let url = try endpointBuilder.buildProcessingURL(
+            endpoint: .check,
+            parameters: parameters
+        )
         
         return try await performRequest(url: url, imageData: imageData)
     }
@@ -178,18 +174,15 @@ public class OCRClient {
         format: DocumentFormat = .image,
         filename: String? = nil
     ) async throws -> ReceiptResponse {
-        var urlComponents = URLComponents(string: baseURL.appendingPathComponent("receipt").absoluteString)!
-        var queryItems = [URLQueryItem(name: "format", value: format.rawValue)]
+        let parameters: [String: String?] = [
+            "format": format.rawValue,
+            "filename": filename
+        ]
         
-        if let filename = filename {
-            queryItems.append(URLQueryItem(name: "filename", value: filename))
-        }
-        
-        urlComponents.queryItems = queryItems
-        
-        guard let url = urlComponents.url else {
-            throw OCRError(error: "Invalid URL")
-        }
+        let url = try endpointBuilder.buildProcessingURL(
+            endpoint: .receipt,
+            parameters: parameters
+        )
         
         return try await performRequest(url: url, imageData: imageData)
     }
@@ -208,21 +201,15 @@ public class OCRClient {
         format: DocumentFormat = .image,
         filename: String? = nil
     ) async throws -> DocumentResponse {
-        var urlComponents = URLComponents(string: baseURL.appendingPathComponent("process").absoluteString)!
-        var queryItems = [
-            URLQueryItem(name: "type", value: type.rawValue),
-            URLQueryItem(name: "format", value: format.rawValue)
+        let parameters: [String: String?] = [
+            "format": format.rawValue,
+            "filename": filename
         ]
         
-        if let filename = filename {
-            queryItems.append(URLQueryItem(name: "filename", value: filename))
-        }
-        
-        urlComponents.queryItems = queryItems
-        
-        guard let url = urlComponents.url else {
-            throw OCRError(error: "Invalid URL")
-        }
+        let url = try endpointBuilder.buildProcessingURL(
+            endpoint: .document(type: type),
+            parameters: parameters
+        )
         
         return try await performRequest(url: url, imageData: imageData)
     }
@@ -234,7 +221,7 @@ public class OCRClient {
         // Reset cancellation flag at the start of a new request
         isCancelled = false
         
-        let url = baseURL.appendingPathComponent("health")
+        let url = try endpointBuilder.buildProcessingURL(endpoint: .health)
         let request = URLRequest(url: url)
         
         // Check if cancelled before starting the request
@@ -506,78 +493,15 @@ public class OCRClient {
     /// - Returns original data for already supported formats
     /// - Returns: Tuple with (data, isConverted) where isConverted is true if the image was converted to PNG
     private func processImageDataWithInfo(_ imageData: Data) throws -> (data: Data, isConverted: Bool) {
-        // Check if this is a HEIC image
-        let isHEIC = isHEICFormat(imageData)
-        
-        if isHEIC {
-            print("Converting HEIC image to PNG format")
-            
-            #if canImport(UIKit) && !os(macOS)
-            // iOS approach - Use UIKit
-            if let image = UIImage(data: imageData) {
-                // Convert to PNG (lossless format)
-                if let pngData = image.pngData() {
-                    print("HEIC conversion successful: \(imageData.count) bytes → \(pngData.count) bytes")
-                    return (pngData, true)
-                }
-                throw OCRError(error: "Failed to convert HEIC to PNG")
-            }
-            throw OCRError(error: "Failed to create UIImage from HEIC data")
-            
-            #elseif canImport(AppKit) && os(macOS)
-            // macOS approach - Use AppKit and ImageIO
-            if let imageSource = CGImageSourceCreateWithData(imageData as CFData, nil),
-               let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) {
-                
-                let nsImage = NSImage(cgImage: cgImage, size: .zero)
-                if let tiffData = nsImage.tiffRepresentation,
-                   let bitmap = NSBitmapImageRep(data: tiffData),
-                   let pngData = bitmap.representation(using: .png, properties: [:]) {
-                    print("HEIC conversion successful: \(imageData.count) bytes → \(pngData.count) bytes")
-                    return (pngData, true)
-                }
-                throw OCRError(error: "Failed to convert HEIC to PNG")
-            }
-            throw OCRError(error: "Failed to create image from HEIC data")
-            
-            #else
-            // For other platforms, provide a warning
-            print("Warning: HEIC conversion is not supported on this platform. Image may not be processed correctly.")
-            return (imageData, false)
-            #endif
+        do {
+            // Delegate to the ImageProcessor service
+            return try imageProcessor.processImage(imageData)
+        } catch let error as ImageProcessorError {
+            // Convert ImageProcessorError to OCRError
+            throw OCRError(error: error.message)
+        } catch {
+            // Re-throw any other errors
+            throw error
         }
-        
-        // Return original data for already supported formats
-        return (imageData, false)
-    }
-    
-    /// Check if the provided data is in HEIC format
-    private func isHEICFormat(_ imageData: Data) -> Bool {
-        // HEIC files start with the 'ftyp' box followed by a brand like 'heic', 'heix', 'hevc', 'hevx'
-        // We'll check for the 'ftyp' marker followed by one of these brands
-        
-        // Need at least 12 bytes to check the format
-        guard imageData.count >= 12 else { return false }
-        
-        // HEIC format check
-        // The 'ftyp' box is at position 4, and the brand follows it
-        let ftypRange = 4..<8
-        let brandRange = 8..<12
-        
-        if let ftypString = String(data: imageData.subdata(in: ftypRange), encoding: .ascii),
-           ftypString == "ftyp" {
-            
-            if let brandString = String(data: imageData.subdata(in: brandRange), encoding: .ascii) {
-                // Check for HEIC related brands
-                let heicBrands = ["heic", "heix", "hevc", "hevx"]
-                for brand in heicBrands {
-                    if brandString.hasPrefix(brand) {
-                        return true
-                    }
-                }
-            }
-        }
-        
-        return false
     }
 }
