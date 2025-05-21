@@ -53,7 +53,7 @@ func prettyPrint(_ data: Data) {
     } catch {
         print("Error processing JSON: \(error)")
         if let str = String(data: data, encoding: .utf8) {
-            print("Raw response: \(str.prefix(1000))") // Show first 1000 chars to avoid huge output
+            print("Raw response: \(str)")
         }
     }
 }
