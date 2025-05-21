@@ -1,7 +1,7 @@
 import Foundation
 
 /// Type of check
-public enum CheckType: String, Codable {
+public enum CheckType: String, Codable, SafeDecodableEnum {
     case personal
     case business
     case cashier
@@ -12,39 +12,19 @@ public enum CheckType: String, Codable {
     case moneyOrder = "money_order"
     case other
     
-    // Add a fallback case for unknown values
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let rawValue = try container.decode(String.self)
-        
-        if let knownValue = CheckType(rawValue: rawValue) {
-            self = knownValue
-        } else {
-            print("Warning: Unknown CheckType value: '\(rawValue)', defaulting to .other")
-            self = .other
-        }
-    }
+    /// Default value to use when an unknown value is encountered
+    public static var defaultValue: CheckType { .other }
 }
 
 /// Type of bank account
-public enum BankAccountType: String, Codable {
+public enum BankAccountType: String, Codable, SafeDecodableEnum {
     case checking
     case savings
     case moneyMarket = "money_market"
     case other
     
-    // Add a fallback case for unknown values
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let rawValue = try container.decode(String.self)
-        
-        if let knownValue = BankAccountType(rawValue: rawValue) {
-            self = knownValue
-        } else {
-            print("Warning: Unknown BankAccountType value: '\(rawValue)', defaulting to .other")
-            self = .other
-        }
-    }
+    /// Default value to use when an unknown value is encountered
+    public static var defaultValue: BankAccountType { .other }
 }
 
 /// Check metadata with confidence and source information
@@ -88,17 +68,7 @@ public struct Check: Codable {
     /// Computed property to access amount as a formatted string
     public var amountString: String? {
         guard let amount = amount else { return nil }
-        
-        let formatter = NumberFormatter()
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        formatter.numberStyle = .decimal
-        
-        if let formattedAmount = formatter.string(from: amount as NSDecimalNumber) {
-            return formattedAmount.replacingOccurrences(of: formatter.groupingSeparator, with: "")
-        } else {
-            return "\(amount)"
-        }
+        return formatDecimal(amount)
     }
     
     /// Standard initializer for creating checks programmatically
@@ -213,19 +183,8 @@ public struct Check: Codable {
         metadata = try container.decodeIfPresent(CheckMetadata.self, forKey: .metadata)
         confidence = try container.decode(Double.self, forKey: .confidence)
         
-        // Helper function to decode a monetary value that could be a string or decimal
-        func decodeDecimalValue(forKey key: CodingKeys) throws -> Decimal? {
-            if let decimalValue = try? container.decodeIfPresent(Decimal.self, forKey: key) {
-                return decimalValue
-            } else if let stringValue = try? container.decodeIfPresent(String.self, forKey: key),
-                      let decimalFromString = Decimal(string: stringValue) {
-                return decimalFromString
-            }
-            return nil
-        }
-        
-        // Decode amount as optional
-        amount = try decodeDecimalValue(forKey: .amount)
+        // Decode amount as optional using the shared MoneyFormatter
+        amount = try MoneyFormatter.shared.decodeDecimalValue(from: container, forKey: .amount)
     }
     
     private enum CodingKeys: String, CodingKey {

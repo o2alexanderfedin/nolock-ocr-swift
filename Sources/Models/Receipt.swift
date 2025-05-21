@@ -1,7 +1,7 @@
 import Foundation
 
 /// Type of receipt
-public enum ReceiptType: String, Codable {
+public enum ReceiptType: String, Codable, SafeDecodableEnum {
     case sale
     case `return`
     case refund
@@ -10,22 +10,12 @@ public enum ReceiptType: String, Codable {
     case utility
     case other
     
-    // Add a fallback case for unknown values
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let rawValue = try container.decode(String.self)
-        
-        if let knownValue = ReceiptType(rawValue: rawValue) {
-            self = knownValue
-        } else {
-            print("Warning: Unknown ReceiptType value: \(rawValue), defaulting to .other")
-            self = .other
-        }
-    }
+    /// Default value to use when an unknown value is encountered
+    public static var defaultValue: ReceiptType { .other }
 }
 
 /// Method of payment
-public enum PaymentMethod: String, Codable {
+public enum PaymentMethod: String, Codable, SafeDecodableEnum {
     case credit
     case debit
     case cash
@@ -35,22 +25,12 @@ public enum PaymentMethod: String, Codable {
     case mobilePayment = "mobile_payment"
     case other
     
-    // Add a fallback case for unknown values
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let rawValue = try container.decode(String.self)
-        
-        if let knownValue = PaymentMethod(rawValue: rawValue) {
-            self = knownValue
-        } else {
-            print("Warning: Unknown PaymentMethod value: '\(rawValue)', defaulting to .other")
-            self = .other
-        }
-    }
+    /// Default value to use when an unknown value is encountered
+    public static var defaultValue: PaymentMethod { .other }
 }
 
 /// Type of payment card
-public enum CardType: String, Codable {
+public enum CardType: String, Codable, SafeDecodableEnum {
     case visa
     case mastercard
     case amex
@@ -60,22 +40,12 @@ public enum CardType: String, Codable {
     case unionPay = "union_pay"
     case other
     
-    // Add a fallback case for unknown values
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let rawValue = try container.decode(String.self)
-        
-        if let knownValue = CardType(rawValue: rawValue) {
-            self = knownValue
-        } else {
-            print("Warning: Unknown CardType value: '\(rawValue)', defaulting to .other")
-            self = .other
-        }
-    }
+    /// Default value to use when an unknown value is encountered
+    public static var defaultValue: CardType { .other }
 }
 
 /// Type of tax
-public enum TaxType: String, Codable {
+public enum TaxType: String, Codable, SafeDecodableEnum {
     case sales
     case vat
     case gst
@@ -85,22 +55,12 @@ public enum TaxType: String, Codable {
     case service
     case other
     
-    // Add a fallback case for unknown values
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let rawValue = try container.decode(String.self)
-        
-        if let knownValue = TaxType(rawValue: rawValue) {
-            self = knownValue
-        } else {
-            print("Warning: Unknown TaxType value: '\(rawValue)', defaulting to .other")
-            self = .other
-        }
-    }
+    /// Default value to use when an unknown value is encountered
+    public static var defaultValue: TaxType { .other }
 }
 
 /// Format type of receipt
-public enum ReceiptFormat: String, Codable {
+public enum ReceiptFormat: String, Codable, SafeDecodableEnum {
     case retail
     case restaurant
     case service
@@ -109,22 +69,12 @@ public enum ReceiptFormat: String, Codable {
     case accommodation
     case other
     
-    // Add a fallback case for unknown values
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let rawValue = try container.decode(String.self)
-        
-        if let knownValue = ReceiptFormat(rawValue: rawValue) {
-            self = knownValue
-        } else {
-            print("Warning: Unknown ReceiptFormat value: '\(rawValue)', defaulting to .other")
-            self = .other
-        }
-    }
+    /// Default value to use when an unknown value is encountered
+    public static var defaultValue: ReceiptFormat { .other }
 }
 
 /// Unit of measurement
-public enum UnitOfMeasure: String, Codable {
+public enum UnitOfMeasure: String, Codable, SafeDecodableEnum {
     case ea
     case kg
     case g
@@ -139,18 +89,8 @@ public enum UnitOfMeasure: String, Codable {
     case box
     case other
     
-    // Add a fallback case for unknown values
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let rawValue = try container.decode(String.self)
-        
-        if let knownValue = UnitOfMeasure(rawValue: rawValue) {
-            self = knownValue
-        } else {
-            print("Warning: Unknown UnitOfMeasure value: '\(rawValue)', defaulting to .other")
-            self = .other
-        }
-    }
+    /// Default value to use when an unknown value is encountered
+    public static var defaultValue: UnitOfMeasure { .other }
 }
 
 /// Merchant information
@@ -197,7 +137,7 @@ public struct MerchantInfo: Codable {
 }
 
 /// Receipt totals information
-public struct ReceiptTotals: Codable {
+public struct ReceiptTotals: Codable, MoneyFormattable {
     /// Pre-tax total amount as Decimal for precise financial calculations
     public let subtotal: Decimal?
     
@@ -245,20 +185,6 @@ public struct ReceiptTotals: Codable {
         return formatDecimal(total)
     }
     
-    /// Helper function to format a Decimal value as a string
-    private func formatDecimal(_ value: Decimal) -> String {
-        let formatter = NumberFormatter()
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        formatter.numberStyle = .decimal
-        
-        if let formattedValue = formatter.string(from: value as NSDecimalNumber) {
-            return formattedValue.replacingOccurrences(of: formatter.groupingSeparator, with: "")
-        } else {
-            return "\(value)"
-        }
-    }
-    
     /// Standard initializer for creating receipt totals programmatically
     public init(
         subtotal: Decimal?,
@@ -282,11 +208,11 @@ public struct ReceiptTotals: Codable {
         discountString: String?,
         totalString: String?
     ) {
-        let subtotalDecimal = subtotalString.flatMap { Decimal(string: $0) }
-        let taxDecimal = taxString.flatMap { Decimal(string: $0) }
-        let tipDecimal = tipString.flatMap { Decimal(string: $0) }
-        let discountDecimal = discountString.flatMap { Decimal(string: $0) }
-        let totalDecimal = totalString.flatMap { Decimal(string: $0) }
+        let subtotalDecimal = MoneyFormatter.shared.decimalFromString(subtotalString)
+        let taxDecimal = MoneyFormatter.shared.decimalFromString(taxString)
+        let tipDecimal = MoneyFormatter.shared.decimalFromString(tipString)
+        let discountDecimal = MoneyFormatter.shared.decimalFromString(discountString)
+        let totalDecimal = MoneyFormatter.shared.decimalFromString(totalString)
         
         self.init(
             subtotal: subtotalDecimal,
@@ -301,23 +227,12 @@ public struct ReceiptTotals: Codable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        // Helper function to decode a monetary value that could be a string or decimal
-        func decodeDecimalValue(forKey key: CodingKeys) throws -> Decimal? {
-            if let decimalValue = try? container.decodeIfPresent(Decimal.self, forKey: key) {
-                return decimalValue
-            } else if let stringValue = try? container.decodeIfPresent(String.self, forKey: key), 
-                      let decimalFromString = Decimal(string: stringValue) {
-                return decimalFromString
-            }
-            return nil
-        }
-        
-        // Decode all fields as optional
-        subtotal = try decodeDecimalValue(forKey: .subtotal)
-        tax = try decodeDecimalValue(forKey: .tax)
-        tip = try decodeDecimalValue(forKey: .tip)
-        discount = try decodeDecimalValue(forKey: .discount)
-        total = try decodeDecimalValue(forKey: .total)
+        // Decode all fields as optional using the shared MoneyFormatter
+        subtotal = try MoneyFormatter.shared.decodeDecimalValue(from: container, forKey: .subtotal)
+        tax = try MoneyFormatter.shared.decodeDecimalValue(from: container, forKey: .tax)
+        tip = try MoneyFormatter.shared.decodeDecimalValue(from: container, forKey: .tip)
+        discount = try MoneyFormatter.shared.decodeDecimalValue(from: container, forKey: .discount)
+        total = try MoneyFormatter.shared.decodeDecimalValue(from: container, forKey: .total)
     }
     
     private enum CodingKeys: String, CodingKey {
@@ -338,7 +253,7 @@ public struct ReceiptTotals: Codable {
 }
 
 /// Line item on the receipt
-public struct ReceiptLineItem: Codable {
+public struct ReceiptLineItem: Codable, MoneyFormattable {
     /// Item description or name
     public let description: String
     
@@ -386,20 +301,6 @@ public struct ReceiptLineItem: Codable {
         return formatDecimal(discountAmount)
     }
     
-    /// Helper function to format a Decimal value as a string
-    private func formatDecimal(_ value: Decimal) -> String {
-        let formatter = NumberFormatter()
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        formatter.numberStyle = .decimal
-        
-        if let formattedValue = formatter.string(from: value as NSDecimalNumber) {
-            return formattedValue.replacingOccurrences(of: formatter.groupingSeparator, with: "")
-        } else {
-            return "\(value)"
-        }
-    }
-    
     /// Standard initializer for creating line items programmatically
     public init(
         description: String,
@@ -435,9 +336,9 @@ public struct ReceiptLineItem: Codable {
         discountAmountString: String?,
         category: String?
     ) {
-        let unitPriceDecimal = unitPriceString.flatMap { Decimal(string: $0) }
-        let discountAmountDecimal = discountAmountString.flatMap { Decimal(string: $0) }
-        let totalPriceDecimal = totalPriceString.flatMap { Decimal(string: $0) }
+        let unitPriceDecimal = MoneyFormatter.shared.decimalFromString(unitPriceString)
+        let discountAmountDecimal = MoneyFormatter.shared.decimalFromString(discountAmountString)
+        let totalPriceDecimal = MoneyFormatter.shared.decimalFromString(totalPriceString)
         
         self.init(
             description: description,
@@ -456,17 +357,6 @@ public struct ReceiptLineItem: Codable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        // Helper function to decode a monetary value that could be a string or decimal
-        func decodeDecimalValue(forKey key: CodingKeys) throws -> Decimal? {
-            if let decimalValue = try? container.decodeIfPresent(Decimal.self, forKey: key) {
-                return decimalValue
-            } else if let stringValue = try? container.decodeIfPresent(String.self, forKey: key),
-                      let decimalFromString = Decimal(string: stringValue) {
-                return decimalFromString
-            }
-            return nil
-        }
-        
         // Decode required fields
         description = try container.decode(String.self, forKey: .description)
         
@@ -477,10 +367,10 @@ public struct ReceiptLineItem: Codable {
         category = try container.decodeIfPresent(String.self, forKey: .category)
         discounted = try container.decodeIfPresent(Bool.self, forKey: .discounted)
         
-        // Decode all monetary fields as optional
-        unitPrice = try decodeDecimalValue(forKey: .unitPrice)
-        discountAmount = try decodeDecimalValue(forKey: .discountAmount)
-        totalPrice = try decodeDecimalValue(forKey: .totalPrice)
+        // Decode all monetary fields as optional using the shared MoneyFormatter
+        unitPrice = try MoneyFormatter.shared.decodeDecimalValue(from: container, forKey: .unitPrice)
+        discountAmount = try MoneyFormatter.shared.decodeDecimalValue(from: container, forKey: .discountAmount)
+        totalPrice = try MoneyFormatter.shared.decodeDecimalValue(from: container, forKey: .totalPrice)
     }
     
     private enum CodingKeys: String, CodingKey {
@@ -506,7 +396,7 @@ public struct ReceiptLineItem: Codable {
 }
 
 /// Tax item on a receipt
-public struct ReceiptTaxItem: Codable {
+public struct ReceiptTaxItem: Codable, MoneyFormattable {
     /// Name of tax (e.g., 'VAT', 'Sales Tax')
     public let taxName: String
     
@@ -533,20 +423,6 @@ public struct ReceiptTaxItem: Codable {
         return formatDecimal(taxAmount)
     }
     
-    /// Helper function to format a Decimal value as a string
-    private func formatDecimal(_ value: Decimal) -> String {
-        let formatter = NumberFormatter()
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        formatter.numberStyle = .decimal
-        
-        if let formattedValue = formatter.string(from: value as NSDecimalNumber) {
-            return formattedValue.replacingOccurrences(of: formatter.groupingSeparator, with: "")
-        } else {
-            return "\(value)"
-        }
-    }
-    
     /// Standard initializer for creating tax items programmatically
     public init(
         taxName: String,
@@ -567,8 +443,8 @@ public struct ReceiptTaxItem: Codable {
         taxRateString: String?,
         taxAmountString: String?
     ) {
-        let taxRateDecimal = taxRateString.flatMap { Decimal(string: $0) }
-        let taxAmountDecimal = taxAmountString.flatMap { Decimal(string: $0) }
+        let taxRateDecimal = MoneyFormatter.shared.decimalFromString(taxRateString)
+        let taxAmountDecimal = MoneyFormatter.shared.decimalFromString(taxAmountString)
         
         self.init(
             taxName: taxName,
@@ -582,26 +458,15 @@ public struct ReceiptTaxItem: Codable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        // Helper function to decode a monetary value that could be a string or decimal
-        func decodeDecimalValue(forKey key: CodingKeys) throws -> Decimal? {
-            if let decimalValue = try? container.decodeIfPresent(Decimal.self, forKey: key) {
-                return decimalValue
-            } else if let stringValue = try? container.decodeIfPresent(String.self, forKey: key),
-                      let decimalFromString = Decimal(string: stringValue) {
-                return decimalFromString
-            }
-            return nil
-        }
-        
         // Decode required fields
         taxName = try container.decode(String.self, forKey: .taxName)
         
         // Decode optional fields
         taxType = try container.decodeIfPresent(String.self, forKey: .taxType)
         
-        // Decode all monetary fields as optional
-        taxRate = try decodeDecimalValue(forKey: .taxRate)
-        taxAmount = try decodeDecimalValue(forKey: .taxAmount)
+        // Decode all monetary fields as optional using shared MoneyFormatter
+        taxRate = try MoneyFormatter.shared.decodeDecimalValue(from: container, forKey: .taxRate)
+        taxAmount = try MoneyFormatter.shared.decodeDecimalValue(from: container, forKey: .taxAmount)
     }
     
     private enum CodingKeys: String, CodingKey {
@@ -621,7 +486,7 @@ public struct ReceiptTaxItem: Codable {
 }
 
 /// Payment method used on a receipt
-public struct ReceiptPaymentMethod: Codable {
+public struct ReceiptPaymentMethod: Codable, MoneyFormattable {
     /// Method of payment
     public let method: PaymentMethod
     
@@ -643,20 +508,6 @@ public struct ReceiptPaymentMethod: Codable {
     public var amountString: String? {
         guard let amount = amount else { return nil }
         return formatDecimal(amount)
-    }
-    
-    /// Helper function to format a Decimal value as a string
-    private func formatDecimal(_ value: Decimal) -> String {
-        let formatter = NumberFormatter()
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        formatter.numberStyle = .decimal
-        
-        if let formattedValue = formatter.string(from: value as NSDecimalNumber) {
-            return formattedValue.replacingOccurrences(of: formatter.groupingSeparator, with: "")
-        } else {
-            return "\(value)"
-        }
     }
     
     /// Standard initializer for creating payment methods programmatically
@@ -682,7 +533,7 @@ public struct ReceiptPaymentMethod: Codable {
         amountString: String?,
         transactionId: String?
     ) {
-        let amountDecimal = amountString.flatMap { Decimal(string: $0) }
+        let amountDecimal = MoneyFormatter.shared.decimalFromString(amountString)
         
         self.init(
             method: method,
@@ -705,19 +556,8 @@ public struct ReceiptPaymentMethod: Codable {
         lastDigits = try container.decodeIfPresent(String.self, forKey: .lastDigits)
         transactionId = try container.decodeIfPresent(String.self, forKey: .transactionId)
         
-        // Helper function to decode a monetary value that could be a string or decimal
-        func decodeDecimalValue(forKey key: CodingKeys) throws -> Decimal? {
-            if let decimalValue = try? container.decodeIfPresent(Decimal.self, forKey: key) {
-                return decimalValue
-            } else if let stringValue = try? container.decodeIfPresent(String.self, forKey: key),
-                      let decimalFromString = Decimal(string: stringValue) {
-                return decimalFromString
-            }
-            return nil
-        }
-        
-        // Decode amount as optional
-        amount = try decodeDecimalValue(forKey: .amount)
+        // Decode amount as optional using shared MoneyFormatter
+        amount = try MoneyFormatter.shared.decodeDecimalValue(from: container, forKey: .amount)
     }
     
     private enum CodingKeys: String, CodingKey {
