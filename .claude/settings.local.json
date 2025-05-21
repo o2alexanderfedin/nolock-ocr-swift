@@ -15,7 +15,9 @@
       "Bash(git reset:*)",
       "Bash(mkdir:*)",
       "Bash(xcrun:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(gh:*)",
+      "Bash(env OCR_TEST_ENV=staging swift test --filter EnvironmentIntegrationTests)"
     ],
     "deny": []
   }
