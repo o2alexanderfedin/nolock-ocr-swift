@@ -34,7 +34,7 @@ Add the package to your project using Swift Package Manager:
 #### In Package.swift:
 ```swift
 dependencies: [
-    .package(url: "https://github.com/o2alexanderfedin/nolock-ocr-swift.git", from: "1.4.3"),
+    .package(url: "https://github.com/o2alexanderfedin/nolock-ocr-swift.git", from: "1.4.4"),
 ],
 targets: [
     .target(
