@@ -320,12 +320,18 @@ public class OCRClient {
                     return
                 }
                 
+                // Print raw response data for debugging
+                if let jsonString = String(data: data, encoding: .utf8) {
+                    print("Raw JSON Health Response: \(jsonString)")
+                }
+                
                 // Process successful response
                 do {
                     let decoder = JSONDecoder()
                     let result = try decoder.decode(HealthResponse.self, from: data)
                     continuation.resume(returning: result)
                 } catch {
+                    print("JSON Decoding Error: \(error)")
                     continuation.resume(throwing: error)
                 }
             }
@@ -497,12 +503,18 @@ public class OCRClient {
                     return
                 }
                 
+                // Print raw response data for debugging
+                if let jsonString = String(data: data, encoding: .utf8) {
+                    print("Raw JSON Response: \(jsonString)")
+                }
+                
                 // Process successful response
                 do {
                     let decoder = JSONDecoder()
                     let result = try decoder.decode(T.self, from: data)
                     continuation.resume(returning: result)
                 } catch {
+                    print("JSON Decoding Error: \(error)")
                     continuation.resume(throwing: error)
                 }
             }
