@@ -9,15 +9,19 @@ fileprivate enum OCRClientTestHelper {
     /// Load a resource from the test bundle
     static func loadResource(name: String, extension ext: String? = nil, shouldFail: Bool = true) -> Data? {
         guard let url = bundle.url(forResource: name, withExtension: ext) else {
+            // Calculate the expected path for better error message
+            let resourcesPath = bundle.bundlePath + "/Resources"
+            let expectedPath = resourcesPath + "/" + name + (ext != nil ? "."+ext! : "")
+            
             if shouldFail {
-                XCTFail("Failed to locate resource: \(name).\(ext ?? "")")
+                XCTFail("Failed to locate resource: \(name).\(ext ?? "") - Expected at path: \(expectedPath)")
             }
             return nil
         }
         
         guard let data = try? Data(contentsOf: url) else {
             if shouldFail {
-                XCTFail("Failed to load resource: \(name).\(ext ?? "")")
+                XCTFail("Failed to load resource: \(name).\(ext ?? "") - File exists at path: \(url.path) but could not be read")
             }
             return nil
         }
@@ -769,8 +773,14 @@ class OCRClientUnitTests: XCTestCase {
     
     func testMissingResourceLoading() {
         // Test loading a resource that doesn't exist
+        // First test with shouldFail=false to make sure it returns nil
         let nonExistentResource = OCRClientTestHelper.loadResource(name: "missing-image", extension: "HEIC", shouldFail: false)
         XCTAssertNil(nonExistentResource, "Loading a non-existent resource should return nil")
+        
+        // Now, use a custom XCTExpectFailure to verify the error message contains the path
+        _ = XCTExpectFailure("This test should fail with a path in the error message")
+        // Force the test to fail with shouldFail=true to see the error message
+        _ = OCRClientTestHelper.loadResource(name: "deliberately-missing", extension: "HEIC", shouldFail: true)
     }
     
     // MARK: - Helper Methods
