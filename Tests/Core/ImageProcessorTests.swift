@@ -7,35 +7,41 @@ fileprivate enum ImageProcessorTestHelper {
     static var bundle: Bundle { Bundle.module }
     
     /// Load a resource from the test bundle
-    static func loadResource(name: String, extension ext: String? = nil) -> Data {
+    static func loadResource(name: String, extension ext: String? = nil, shouldFail: Bool = true) -> Data? {
         guard let url = bundle.url(forResource: name, withExtension: ext) else {
-            fatalError("Failed to locate resource: \(name).\(ext ?? "")")
+            if shouldFail {
+                XCTFail("Failed to locate resource: \(name).\(ext ?? "")")
+            }
+            return nil
         }
         
         guard let data = try? Data(contentsOf: url) else {
-            fatalError("Failed to load resource: \(name).\(ext ?? "")")
+            if shouldFail {
+                XCTFail("Failed to load resource: \(name).\(ext ?? "")")
+            }
+            return nil
         }
         
         return data
     }
     
-    static var receiptImage: Data {
+    static var receiptImage: Data? {
         loadResource(name: "fredmeyer-receipt", extension: "jpg")
     }
     
-    static var receiptImage2: Data {
+    static var receiptImage2: Data? {
         loadResource(name: "fredmeyer-receipt-2", extension: "jpg") 
     }
     
-    static var billImage: Data {
+    static var billImage: Data? {
         loadResource(name: "rental-bill", extension: "jpg")
     }
     
-    static var heicBillImage: Data {
+    static var heicBillImage: Data? {
         loadResource(name: "pge-bill", extension: "HEIC")
     }
     
-    static var heicCheckImage: Data {
+    static var heicCheckImage: Data? {
         loadResource(name: "promo-check", extension: "HEIC")
     }
 }
@@ -79,6 +85,11 @@ final class ImageProcessorTests: XCTestCase {
     func testIsHEICFormatWithMockHEICData() {
         // Use the real mock HEIC data from resources
         let heicData = ImageProcessorTestHelper.heicBillImage
+        XCTAssertNotNil(heicData, "Failed to load HEIC test image - image file missing")
+        
+        guard let heicData = heicData else {
+            return
+        }
         XCTAssertTrue(imageProcessor.isHEICFormat(heicData), "HEIC data should be correctly detected")
     }
     
@@ -101,6 +112,11 @@ final class ImageProcessorTests: XCTestCase {
     func testProcessImageWithJPEGData() throws {
         // Use real JPEG data from resources
         let jpegData = ImageProcessorTestHelper.receiptImage
+        XCTAssertNotNil(jpegData, "Failed to load JPEG test image - image file missing")
+        
+        guard let jpegData = jpegData else {
+            return
+        }
         let (processedData, isConverted) = try imageProcessor.processImage(jpegData)
         
         XCTAssertEqual(processedData, jpegData, "JPEG data should not be modified")
@@ -110,6 +126,11 @@ final class ImageProcessorTests: XCTestCase {
     func testProcessImageWithPNGData() throws {
         // Use real PNG data from resources
         let pngData = ImageProcessorTestHelper.billImage
+        XCTAssertNotNil(pngData, "Failed to load PNG test image - image file missing")
+        
+        guard let pngData = pngData else {
+            return
+        }
         let (processedData, isConverted) = try imageProcessor.processImage(pngData)
         
         XCTAssertEqual(processedData, pngData, "PNG data should not be modified")
@@ -119,6 +140,11 @@ final class ImageProcessorTests: XCTestCase {
     func testProcessImageWithHEICData() throws {
         // Use mock HEIC data from resources
         let heicData = ImageProcessorTestHelper.heicBillImage
+        XCTAssertNotNil(heicData, "Failed to load HEIC test image - image file missing")
+        
+        guard let heicData = heicData else {
+            return
+        }
         
         // Since our test HEIC data is not a real HEIC image, we expect it to fail conversion
         // but we can at least verify it attempts conversion by checking the isHEICFormat method is called
@@ -139,5 +165,11 @@ final class ImageProcessorTests: XCTestCase {
     func testImageProcessorErrorDescription() {
         let error = ImageProcessorError(message: "Test error message")
         XCTAssertEqual(error.errorDescription, "Test error message")
+    }
+    
+    func testMissingResourceLoading() {
+        // Test loading a resource that doesn't exist
+        let nonExistentResource = ImageProcessorTestHelper.loadResource(name: "missing-image", extension: "HEIC", shouldFail: false)
+        XCTAssertNil(nonExistentResource, "Loading a non-existent resource should return nil")
     }
 }
