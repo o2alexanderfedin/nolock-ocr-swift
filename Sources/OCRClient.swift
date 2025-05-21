@@ -43,6 +43,10 @@ public struct DocumentResponse: Codable {
         case .receipt:
             let receiptData = try container.decode(Receipt.self, forKey: .data)
             data = receiptData
+        case .auto:
+            // For auto detection, default to receipt for compatibility
+            let receiptData = try container.decode(Receipt.self, forKey: .data)
+            data = receiptData
         }
     }
     
@@ -83,7 +87,7 @@ public protocol URLSessionProtocol {
     func data(for request: URLRequest, delegate: URLSessionTaskDelegate?) async throws -> (Data, URLResponse)
     
     /// Create a data task that can be started and cancelled
-    func dataTask(with request: URLRequest, completionHandler: @escaping (Data?, URLResponse?, Error?) -> Void) -> URLSessionDataTask
+    func dataTask(with request: URLRequest, completionHandler: @escaping @Sendable (Data?, URLResponse?, Error?) -> Void) -> URLSessionDataTask
 }
 
 /// Extend URLSession to conform to the protocol
@@ -231,7 +235,7 @@ public class OCRClient {
         isCancelled = false
         
         let url = baseURL.appendingPathComponent("health")
-        var request = URLRequest(url: url)
+        let request = URLRequest(url: url)
         
         // Check if cancelled before starting the request
         if isCancelled {
@@ -401,7 +405,7 @@ public class OCRClient {
         request.httpMethod = "POST"
         
         // Process the image data - convert HEIC to PNG if needed
-        let (processedData, isConverted) = try processImageDataWithInfo(imageData)
+        let (processedData, _) = try processImageDataWithInfo(imageData)
         
         // Use image/* content type for better compatibility with server
         // This matches the curl command that works successfully
