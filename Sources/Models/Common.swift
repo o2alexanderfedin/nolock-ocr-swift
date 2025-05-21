@@ -17,3 +17,17 @@ public struct OCRError: Codable, Error {
     /// Error message
     public let error: String
 }
+
+/// Document types that can be processed
+public enum DocumentType: String, Codable {
+    case receipt
+    case check
+    case auto
+}
+
+/// Format types for document processing
+public enum DocumentFormat: String, Codable {
+    case image
+    case pdf
+    case heic
+}
