@@ -436,8 +436,9 @@ public class OCRClient {
         // Process the image data - convert HEIC to PNG if needed
         let (processedData, isConverted) = try processImageDataWithInfo(imageData)
         
-        // Set the Content-Type based on whether image was converted to PNG
-        let contentType = isConverted ? "image/png" : "image/jpeg"
+        // Use image/* content type for better compatibility with server
+        // This matches the curl command that works successfully
+        let contentType = "image/*"
         request.setValue(contentType, forHTTPHeaderField: "Content-Type")
         
         // Set the processed image data as the body

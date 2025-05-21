@@ -142,7 +142,7 @@ class OCRClientIntegrationTests: XCTestCase {
     }
     
     // Test timeout interval (allows for network latency)
-    private let testTimeoutInterval: TimeInterval = 60.0 // 60 seconds
+    private let testTimeoutInterval: TimeInterval = 120.0 // 120 seconds
     
     // Tests to skip if server is not available
     private func skipIfServerUnavailable() async throws {
