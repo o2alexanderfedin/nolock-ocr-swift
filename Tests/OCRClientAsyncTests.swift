@@ -186,7 +186,7 @@ class OCRClientAsyncTests: XCTestCase {
 }
 
 // Simple mock URLSession for testing
-class URLSessionDataTaskMock: URLSessionDataTask {
+class URLSessionDataTaskMock: URLSessionDataTask, @unchecked Sendable {
     private let completionHandler: (Data?, URLResponse?, Error?) -> Void
     private let mockData: Data?
     private let mockResponse: URLResponse?
@@ -211,7 +211,7 @@ class URLSessionDataTaskMock: URLSessionDataTask {
             guard let self = self else { return }
             
             if self.isCancelled {
-                self.completionHandler(nil, nil, NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled, userInfo: nil))
+                self.completionHandler(nil, nil, OCRClientError.taskCancelled)
             } else {
                 self.completionHandler(self.mockData, self.mockResponse, self.mockError)
             }
@@ -223,7 +223,7 @@ class URLSessionDataTaskMock: URLSessionDataTask {
     }
 }
 
-class URLSessionMock: URLSessionProtocol {
+class URLSessionMock: URLSessionProtocol, @unchecked Sendable {
     var nextResponse: (Data, URLResponse)!
     var nextError: Error?
     var simulateDelay: TimeInterval = 0.1
