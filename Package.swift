@@ -44,11 +44,7 @@ let package = Package(
             path: "Tests",
             exclude: ["README.md"],
             resources: [
-                .process("Resources/fredmeyer-receipt.jpg"),
-                .process("Resources/fredmeyer-receipt-2.jpg"),
-                .process("Resources/rental-bill.jpg"),
-                .process("Resources/pge-bill.HEIC"),
-                .process("Resources/promo-check.HEIC")
+                .process("Resources")
             ]),
     ],
     swiftLanguageVersions: [.v5]

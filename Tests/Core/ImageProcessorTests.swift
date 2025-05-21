@@ -3,31 +3,40 @@ import XCTest
 
 // Add test image helper directly to this file
 fileprivate enum ImageProcessorTestHelper {
+    /// Get the test bundle
     static var bundle: Bundle { Bundle.module }
     
+    /// Load a resource from the test bundle
+    static func loadResource(name: String, extension ext: String? = nil) -> Data {
+        guard let url = bundle.url(forResource: name, withExtension: ext) else {
+            fatalError("Failed to locate resource: \(name).\(ext ?? "")")
+        }
+        
+        guard let data = try? Data(contentsOf: url) else {
+            fatalError("Failed to load resource: \(name).\(ext ?? "")")
+        }
+        
+        return data
+    }
+    
     static var receiptImage: Data {
-        let url = bundle.url(forResource: "fredmeyer-receipt.jpg", withExtension: nil)!
-        return try! Data(contentsOf: url)
+        loadResource(name: "fredmeyer-receipt", extension: "jpg")
     }
     
     static var receiptImage2: Data {
-        let url = bundle.url(forResource: "fredmeyer-receipt-2.jpg", withExtension: nil)!
-        return try! Data(contentsOf: url)
+        loadResource(name: "fredmeyer-receipt-2", extension: "jpg") 
     }
     
     static var billImage: Data {
-        let url = bundle.url(forResource: "rental-bill.jpg", withExtension: nil)!
-        return try! Data(contentsOf: url)
+        loadResource(name: "rental-bill", extension: "jpg")
     }
     
     static var heicBillImage: Data {
-        let url = bundle.url(forResource: "pge-bill.HEIC", withExtension: nil)!
-        return try! Data(contentsOf: url)
+        loadResource(name: "pge-bill", extension: "HEIC")
     }
     
     static var heicCheckImage: Data {
-        let url = bundle.url(forResource: "promo-check.HEIC", withExtension: nil)!
-        return try! Data(contentsOf: url)
+        loadResource(name: "promo-check", extension: "HEIC")
     }
 }
 
