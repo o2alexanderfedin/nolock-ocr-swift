@@ -381,6 +381,31 @@ public class OCRClient {
     
     // MARK: - Helper Methods
     
+    /// Set a custom URLSessionProtocol for testing
+    /// This method should only be used in test code
+    /// - Parameter session: The URLSessionProtocol to use
+    static func useCustomURLSession(_ session: URLSessionProtocol) {
+        // Save the session in a way that OCRProcessingService can access
+        // This is a simple static property approach for testing
+        sharedTestSession = session
+    }
+    
+    /// Shared test session for use in tests
+    private static var sharedTestSession: URLSessionProtocol?
+    
+    /// Get the appropriate session to use (real or mock)
+    /// - Returns: The URLSessionProtocol to use
+    public static func getSession() -> URLSessionProtocol {
+        // Use the custom session if set, otherwise use the shared session
+        return sharedTestSession ?? URLSession.shared
+    }
+    
+    /// Get the test session if available
+    /// - Returns: The URLSessionProtocol to use for tests, or nil if none is set
+    static func getSessionForTest() -> URLSessionProtocol? {
+        return sharedTestSession
+    }
+    
     private func performRequest<T: Decodable>(
         url: URL, 
         imageData: Data

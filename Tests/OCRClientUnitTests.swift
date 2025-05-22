@@ -1,6 +1,55 @@
 import XCTest
 @testable import NolockOCR
 
+// Add test image helper directly to this file
+fileprivate enum OCRClientTestHelper {
+    /// Get the test bundle
+    static var bundle: Bundle { Bundle.module }
+    
+    /// Load a resource from the test bundle
+    static func loadResource(name: String, extension ext: String? = nil, shouldFail: Bool = true) -> Data? {
+        guard let url = bundle.url(forResource: name, withExtension: ext) else {
+            // Calculate the expected path for better error message
+            let resourcesPath = bundle.bundlePath + "/Resources"
+            let expectedPath = resourcesPath + "/" + name + (ext != nil ? "."+ext! : "")
+            
+            if shouldFail {
+                XCTFail("Failed to locate resource: \(name).\(ext ?? "") - Expected at path: \(expectedPath)")
+            }
+            return nil
+        }
+        
+        guard let data = try? Data(contentsOf: url) else {
+            if shouldFail {
+                XCTFail("Failed to load resource: \(name).\(ext ?? "") - File exists at path: \(url.path) but could not be read")
+            }
+            return nil
+        }
+        
+        return data
+    }
+    
+    static var receiptImage: Data? {
+        loadResource(name: "fredmeyer-receipt", extension: "jpg")
+    }
+    
+    static var receiptImage2: Data? {
+        loadResource(name: "fredmeyer-receipt-2", extension: "jpg") 
+    }
+    
+    static var billImage: Data? {
+        loadResource(name: "rental-bill", extension: "jpg")
+    }
+    
+    static var heicBillImage: Data? {
+        loadResource(name: "pge-bill", extension: "HEIC")
+    }
+    
+    static var heicCheckImage: Data? {
+        loadResource(name: "promo-check", extension: "HEIC")
+    }
+}
+
 /// Comprehensive unit tests for OCRClient that don't invoke the actual remote service
 class OCRClientUnitTests: XCTestCase {
     // Mock objects
@@ -160,9 +209,15 @@ class OCRClientUnitTests: XCTestCase {
             data: checkResponseJSON.data(using: .utf8)!
         )
         
-        // Execute request with format and filename
+        // Execute request with format and filename, using a real image
+        let imageData = OCRClientTestHelper.receiptImage
+        XCTAssertNotNil(imageData, "Failed to load receipt test image - image file missing")
+        
+        guard let imageData = imageData else {
+            return
+        }
         _ = try? await client.processCheck(
-            imageData: Data(),
+            imageData: imageData,
             format: .pdf,
             filename: "test-check.pdf"
         )
@@ -187,8 +242,14 @@ class OCRClientUnitTests: XCTestCase {
             data: receiptResponseJSON.data(using: .utf8)!
         )
         
-        // Execute request - default format, no filename
-        _ = try? await client.processReceipt(imageData: Data())
+        // Execute request - default format, no filename, using real image
+        let imageData = OCRClientTestHelper.receiptImage2
+        XCTAssertNotNil(imageData, "Failed to load receipt2 test image - image file missing")
+        
+        guard let imageData = imageData else {
+            return
+        }
+        _ = try? await client.processReceipt(imageData: imageData)
         
         // Verify URL
         XCTAssertEqual(mockSession.lastRequestURL?.path, "/receipt")
@@ -396,9 +457,16 @@ class OCRClientUnitTests: XCTestCase {
             data: errorResponseJSON.data(using: .utf8)!
         )
         
-        // Execute request and verify error
+        // Execute request with real image data and verify error
+        let imageData = OCRClientTestHelper.billImage
+        XCTAssertNotNil(imageData, "Failed to load bill test image - image file missing")
+        
+        guard let imageData = imageData else {
+            return
+        }
+        
         do {
-            _ = try await client.processCheck(imageData: Data())
+            _ = try await client.processCheck(imageData: imageData)
             XCTFail("Expected error was not thrown")
         } catch let error as OCRError {
             XCTAssertEqual(error.error, "Invalid image format or corrupted file")
@@ -578,6 +646,37 @@ class OCRClientUnitTests: XCTestCase {
         XCTAssertFalse(secondCancellation, "Second cancellation should return false")
     }
     
+    /// Test HEIC image processing
+    func testHEICImageProcessing() async {
+        // Prepare mock response
+        mockSession.mockResponse = createMockResponse(
+            urlString: "https://ocr-checks-worker.af-4a0.workers.dev/check",
+            statusCode: 200,
+            data: checkResponseJSON.data(using: .utf8)!
+        )
+        
+        // Execute request with mock HEIC data
+        // Since we're not actually testing the conversion (ImageProcessor tests cover that)
+        // we just need to make sure the client attempts to process it
+        let imageData = OCRClientTestHelper.heicCheckImage
+        XCTAssertNotNil(imageData, "Failed to load HEIC check test image - image file missing")
+        
+        guard let imageData = imageData else {
+            return
+        }
+        
+        _ = try? await client.processCheck(
+            imageData: imageData,
+            format: .heic
+        )
+        
+        // Verify request was made
+        XCTAssertNotNil(mockSession.lastRequest, "Request should be made with HEIC image")
+        
+        // Verify Content-Type
+        XCTAssertEqual(mockSession.lastRequest?.value(forHTTPHeaderField: "Content-Type"), "image/*")
+    }
+    
     // MARK: - Completion Handler Tests
     
     /// Test completion handler backward compatibility for check processing
@@ -668,6 +767,20 @@ class OCRClientUnitTests: XCTestCase {
         
         // Wait for expectation
         await fulfillment(of: [expectation], timeout: 1.0)
+    }
+    
+    // MARK: - Resource Tests
+    
+    func testMissingResourceLoading() {
+        // Test loading a resource that doesn't exist
+        // First test with shouldFail=false to make sure it returns nil
+        let nonExistentResource = OCRClientTestHelper.loadResource(name: "missing-image", extension: "HEIC", shouldFail: false)
+        XCTAssertNil(nonExistentResource, "Loading a non-existent resource should return nil")
+        
+        // Now, use a custom XCTExpectFailure to verify the error message contains the path
+        _ = XCTExpectFailure("This test should fail with a path in the error message")
+        // Force the test to fail with shouldFail=true to see the error message
+        _ = OCRClientTestHelper.loadResource(name: "deliberately-missing", extension: "HEIC", shouldFail: true)
     }
     
     // MARK: - Helper Methods

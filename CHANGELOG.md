@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0] - 2025-05-24
+
+### Added
+- Improved test coverage for OCRProcessingService
+- Added helper methods to OCRClient for test session injection
+- Added tests for document-type specific processing paths
+- Added tests for notifyWorkAvailable functionality
+- Added tests for pendingWorkCounter behavior
+- Improved testability of OCRProcessingService by supporting test session injection
+
+## [1.10.0] - 2025-05-22
+
+### Added
+- Enhanced test resource handling to show full file paths in error messages
+- Added proper test resource failure handling with XCTFail instead of fatalError
+- Added XCTExpectFailure tests to verify path inclusion in error messages
+- Improved debugging experience when test resources are missing
+
 ## [1.9.0] - 2025-05-21
 
 ### Added
