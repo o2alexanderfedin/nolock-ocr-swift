@@ -5,32 +5,122 @@ import Foundation
 // IMPORTANT: This test file uses manual mocks in Tests/Mocks directory.
 // For simplicity, we're not using Mockingbird-generated mocks to ensure CI/CD compatibility.
 
-/// OCRProcessingService tests using Mockingbird for mocking
+/// OCRProcessingService tests using manual mocks
 class OCRProcessingServiceMockingbirdTests: XCTestCase {
     
     // MARK: - Test Properties
     
-    // The following type definitions will be available after running generate-mocks.sh
-    // For now, we'll use URLSessionProtocol and a custom protocol for the IO
-    var mockSession: URLSessionProtocol!
-    var mockIO: MockProcessingIO!
-    var processingService: OCRProcessingService<MockProcessingIO>!
+    // Using the same mock classes from OCRProcessingServiceTests
+    var mockSession: MockURLSession!
+    var mockIO: MockIO!
+    var processingService: OCRProcessingService<MockIO>!
     
-    // Protocol for our mock IO implementation
-    protocol MockProcessingIOProtocol: OCRProcessingIO where Item == MockOCRItem {}
+    // Mock URLSession for testing
+    class MockURLSession: URLSessionProtocol {
+        // Response configuration
+        var mockData: Data?
+        var mockResponse: URLResponse?
+        var mockError: Error?
+        
+        // Tracking properties
+        var requestsReceived: [URLRequest] = []
+        var lastRequestURL: URL?
+        var lastRequestMethod: String?
+        
+        func data(from url: URL, delegate: URLSessionTaskDelegate?) async throws -> (Data, URLResponse) {
+            lastRequestURL = url
+            
+            if let error = mockError {
+                throw error
+            }
+            
+            guard let data = mockData, let response = mockResponse else {
+                throw NSError(domain: "MockURLSession", code: 1, userInfo: [NSLocalizedDescriptionKey: "No mock data or response"])
+            }
+            
+            return (data, response)
+        }
+        
+        func data(for request: URLRequest, delegate: URLSessionTaskDelegate?) async throws -> (Data, URLResponse) {
+            lastRequestURL = request.url
+            lastRequestMethod = request.httpMethod
+            requestsReceived.append(request)
+            
+            if let error = mockError {
+                throw error
+            }
+            
+            guard let data = mockData, let response = mockResponse else {
+                throw NSError(domain: "MockURLSession", code: 1, userInfo: [NSLocalizedDescriptionKey: "No mock data or response"])
+            }
+            
+            return (data, response)
+        }
+        
+        func dataTask(with request: URLRequest, completionHandler: @escaping (Data?, URLResponse?, Error?) -> Void) -> URLSessionDataTask {
+            lastRequestURL = request.url
+            lastRequestMethod = request.httpMethod
+            requestsReceived.append(request)
+            
+            let task = MockURLSessionDataTask()
+            
+            // Schedule completion handler to be called asynchronously
+            DispatchQueue.global().async {
+                if let error = self.mockError {
+                    completionHandler(nil, nil, error)
+                } else if let data = self.mockData, let response = self.mockResponse {
+                    completionHandler(data, response, nil)
+                } else {
+                    completionHandler(nil, nil, NSError(domain: "MockURLSession", code: 1, userInfo: [NSLocalizedDescriptionKey: "No mock data or response"]))
+                }
+            }
+            
+            return task
+        }
+    }
     
-    // Mock implementation conforming to our protocol
-    class MockProcessingIO: MockProcessingIOProtocol {
+    // Mock URLSessionDataTask for testing
+    class MockURLSessionDataTask: URLSessionDataTask {
+        override func resume() {
+            // No-op for mock
+        }
+        
+        override func cancel() {
+            // No-op for mock
+        }
+    }
+    
+    // Mock OCR item class
+    class MockOCRItem: OCRProcessable, Identifiable {
+        let id: String
+        let imageData: Data
+        let documentType: DocumentType
+        var metadata: [String: Any]
+        
+        init(id: String, 
+             imageData: Data = Data(repeating: 0, count: 1024), 
+             documentType: DocumentType = .receipt,
+             metadata: [String: Any] = [:]) {
+            self.id = id
+            self.imageData = imageData
+            self.documentType = documentType
+            self.metadata = metadata
+        }
+    }
+    
+    // Mock IO class
+    class MockIO: OCRProcessingIO {
         typealias Item = MockOCRItem
         
         var getNextItemToProcessWasCalled = false
         var itemProcessedWasCalled = false
         var itemToReturn: MockOCRItem?
         var capturedResults: [Result<Any, Error>] = []
+        var items: [MockOCRItem] = []
         
         func getNextItemToProcess() async throws -> MockOCRItem? {
             getNextItemToProcessWasCalled = true
-            return itemToReturn
+            return items.isEmpty ? nil : items.removeFirst()
         }
         
         func itemProcessed(item: MockOCRItem, result: Result<Any, Error>) async throws {
@@ -148,10 +238,22 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
         
         // Initialize mock components manually
         mockSession = MockURLSession()
-        mockIO = MockProcessingIO()
+        mockIO = MockIO()
         
         // Set up OCRClient to use our mock session
         OCRClient.useCustomURLSession(mockSession)
+        
+        // Set up mock HTTP response
+        let mockResponse = HTTPURLResponse(
+            url: URL(string: "https://ocr-checks-worker.af-4a0.workers.dev/receipt")!,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )!
+        
+        // Configure mock session with test data
+        mockSession.mockResponse = mockResponse
+        mockSession.mockData = mockReceiptResponseJSON.data(using: .utf8)!
     }
     
     override func tearDown() {
@@ -204,23 +306,5 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
         
         // Verify getNextItemToProcess was called
         XCTAssertTrue(mockIO.getNextItemToProcessWasCalled, "getNextItemToProcess should be called")
-    }
-}
-
-/// Mock implementation of OCRProcessable for testing
-class MockOCRItem: OCRProcessable, Identifiable {
-    let id: String
-    let imageData: Data
-    let documentType: DocumentType
-    var metadata: [String: Any]
-    
-    init(id: String, 
-         imageData: Data = Data(repeating: 0, count: 1024), 
-         documentType: DocumentType = .receipt,
-         metadata: [String: Any] = [:]) {
-        self.id = id
-        self.imageData = imageData
-        self.documentType = documentType
-        self.metadata = metadata
     }
 }
