@@ -7,10 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2025-05-25
+
 ### Added
 - Integrated Mockingbird framework for improved test mocking
 - Added example test implementations using Mockingbird
 - Added mock generation script and configuration
+- Added comprehensive OCRProcessingService documentation and examples
+- Added BatchProcessingExample.swift showing complete implementation
+- Added batch-processing-guide.md with detailed usage instructions
 
 ## [1.11.0] - 2025-05-24
 
