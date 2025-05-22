@@ -1,0 +1,14 @@
+sourceDirectory: Sources
+outputDirectory: Tests/Mocks/Generated
+targets:
+  - NolockOCR
+testTargets:
+  - NolockOCRTests
+mockFileSuffix: Mock
+testableImports:
+  - NolockOCR
+include:
+  - URLSessionProtocol
+  - OCRProcessingIO
+  - OCRProcessable
+  - ProcessingStatus
