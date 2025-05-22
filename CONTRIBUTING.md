@@ -43,18 +43,51 @@ Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md) to foster an op
 - Write unit tests for new code
 - Ensure all tests pass before submitting a pull request
 - Include integration tests for user-facing features
+- Run `swift test` locally to verify your tests
+
+### Linting
+
+- Adhere to the SwiftLint rules defined in `.swiftlint.yml`
+- Install SwiftLint locally: `brew install swiftlint`
+- Run `swiftlint` locally before submitting to ensure your code passes linting
+
+### Continuous Integration
+
+- All pull requests and pushes to main/develop branches trigger the CI/CD pipeline
+- The pipeline runs:
+  - Swift build
+  - Swift tests
+  - SwiftLint
+  - Documentation generation (for releases)
+- Fix any issues reported by the CI/CD pipeline before requesting a review
+- Check the GitHub Actions tab to view the status of your builds
 
 ### Documentation
 
 - Update the README.md with details of changes to the interface
 - Update the CHANGELOG.md with the nature of changes
 - Document public APIs with proper documentation comments
+- Follow the [Swift Documentation](https://developer.apple.com/documentation/swift) guidelines
 
 ## Pull Request Process
 
 1. Update the README.md and documentation with details of changes if needed
 2. Update the CHANGELOG.md with details of changes
-3. The PR will be merged once it receives approval from maintainers
+3. Ensure all CI/CD checks pass on your pull request
+4. Address any feedback or requested changes from the code review
+5. The PR will be merged once it receives approval from maintainers and all CI checks pass
+
+### Release Process
+
+Releases are automated through the CI/CD pipeline:
+
+1. When a new version is ready for release, update the CHANGELOG.md with the new version
+2. Create and push a tag in the format `v{major}.{minor}.{patch}` (e.g., `v1.12.0`)
+3. The CI/CD pipeline will automatically:
+   - Build and test the package
+   - Generate documentation
+   - Create a GitHub release with release notes from the CHANGELOG.md
+   - (Optional) Publish the package to package registries (when configured)
 
 ## Getting Help
 

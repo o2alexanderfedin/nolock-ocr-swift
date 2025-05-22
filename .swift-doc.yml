@@ -1,0 +1,7 @@
+module_name: NolockOCR
+author: Nolock.social
+author_url: https://github.com/o2alexanderfedin/nolock-ocr-swift
+github_url: https://github.com/o2alexanderfedin/nolock-ocr-swift
+theme: default
+output: docs/api
+min_acl: internal
