@@ -760,9 +760,9 @@ class OCRProcessingServiceTests: XCTestCase {
         OCRClient.useCustomURLSession(mockSession)
         
         // Create test items for each document type
-        let receiptItem = MockOCRItem.createReceiptItem(id: "test-receipt")
-        let checkItem = MockOCRItem.createCheckItem(id: "test-check")
-        let autoItem = MockOCRItem.createAutoItem(id: "test-auto")
+        let receiptItem = TestMockOCRItem.createReceiptItem(id: "test-receipt")
+        let checkItem = TestMockOCRItem.createCheckItem(id: "test-check")
+        let autoItem = TestMockOCRItem.createAutoItem(id: "test-auto")
         
         // Initialize IO with these items
         mockIO = MockIO(items: [receiptItem, checkItem, autoItem])
@@ -942,8 +942,8 @@ class OCRProcessingServiceTests: XCTestCase {
         OCRClient.useCustomURLSession(mockSession)
         
         // Create test items
-        let receiptItem = MockOCRItem.createReceiptItem(id: "test-receipt")
-        let checkItem = MockOCRItem.createCheckItem(id: "test-check") 
+        let receiptItem = TestMockOCRItem.createReceiptItem(id: "test-receipt")
+        let checkItem = TestMockOCRItem.createCheckItem(id: "test-check") 
         
         // Initialize IO with these items
         mockIO = MockIO(items: [receiptItem, checkItem])
@@ -1004,7 +1004,7 @@ class OCRProcessingServiceTests: XCTestCase {
         mockSession.mockError = testError
         
         // Create test item
-        let testItem = MockOCRItem.createReceiptItem(id: "error-test-item")
+        let testItem = TestMockOCRItem.createReceiptItem(id: "error-test-item")
         
         // Initialize IO with the item
         mockIO = MockIO(items: [testItem])
@@ -1077,7 +1077,7 @@ class OCRProcessingServiceTests: XCTestCase {
         mockSession.mockData = Self.mockErrorResponseJSON.data(using: .utf8)!
         
         // Create test item
-        let testItem = MockOCRItem.createReceiptItem(id: "server-error-test-item")
+        let testItem = TestMockOCRItem.createReceiptItem(id: "server-error-test-item")
         
         // Initialize IO with the item
         mockIO = MockIO(items: [testItem])
@@ -1137,7 +1137,7 @@ class OCRProcessingServiceTests: XCTestCase {
         mockSession.mockError = NSError(domain: NSURLErrorDomain, code: NSURLErrorTimedOut, userInfo: nil)
         
         // Create test item
-        let testItem = MockOCRItem.createReceiptItem(id: "timeout-test-item")
+        let testItem = TestMockOCRItem.createReceiptItem(id: "timeout-test-item")
         
         // Initialize IO with the item
         mockIO = MockIO(items: [testItem])
@@ -1236,16 +1236,16 @@ class OCRProcessingServiceTests: XCTestCase {
         // Dispatch multiple notifyWorkAvailable calls with new items
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             // Add first batch of items
-            self.mockIO.items = [MockOCRItem.createReceiptItem(id: "notify-item-1")]
+            self.mockIO.items = [TestMockOCRItem.createReceiptItem(id: "notify-item-1")]
             self.processingService.notifyWorkAvailable()
             
             // Add more items in quick succession
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                self.mockIO.items.append(MockOCRItem.createReceiptItem(id: "notify-item-2"))
+                self.mockIO.items.append(TestMockOCRItem.createReceiptItem(id: "notify-item-2"))
                 self.processingService.notifyWorkAvailable()
                 
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    self.mockIO.items.append(MockOCRItem.createReceiptItem(id: "notify-item-3"))
+                    self.mockIO.items.append(TestMockOCRItem.createReceiptItem(id: "notify-item-3"))
                     self.processingService.notifyWorkAvailable()
                     
                     // Final completion check
@@ -1286,7 +1286,7 @@ class OCRProcessingServiceTests: XCTestCase {
         mockSession.mockData = Self.mockReceiptResponseJSON.data(using: .utf8)!
         
         // Create IO with one initial item and race condition simulation
-        let initialItem = MockOCRItem.createReceiptItem(id: "race-initial-item")
+        let initialItem = TestMockOCRItem.createReceiptItem(id: "race-initial-item")
         mockIO = MockIO(items: [initialItem], processingDelay: 0.1)
         mockIO.simulateRaceCondition = true
         
@@ -1428,9 +1428,9 @@ class OCRProcessingServiceTests: XCTestCase {
         
         // Create a batch of items
         let items = [
-            MockOCRItem.createReceiptItem(id: "cancel-item-1"),
-            MockOCRItem.createReceiptItem(id: "cancel-item-2"),
-            MockOCRItem.createReceiptItem(id: "cancel-item-3")
+            TestMockOCRItem.createReceiptItem(id: "cancel-item-1"),
+            TestMockOCRItem.createReceiptItem(id: "cancel-item-2"),
+            TestMockOCRItem.createReceiptItem(id: "cancel-item-3")
         ]
         
         // Initialize IO with these items
@@ -1498,7 +1498,7 @@ class OCRProcessingServiceTests: XCTestCase {
         mockSession.documentResponseData = Self.mockDocumentResponseJSON.data(using: .utf8)!
         
         // Create a mixed batch of items (5 of each type)
-        let mixedBatch = MockOCRItem.createMixedBatch(count: 15) // Will create 5 of each type
+        let mixedBatch = TestMockOCRItem.createMixedBatch(count: 15) // Will create 5 of each type
         
         // Initialize IO with these items
         mockIO = MockIO(items: mixedBatch)
@@ -1586,7 +1586,7 @@ class OCRProcessingServiceTests: XCTestCase {
         mockSession.mockData = Self.mockMalformedResponseJSON.data(using: .utf8)!
         
         // Create test item
-        let testItem = MockOCRItem.createReceiptItem(id: "malformed-json-item")
+        let testItem = TestMockOCRItem.createReceiptItem(id: "malformed-json-item")
         
         // Initialize IO with the item
         mockIO = MockIO(items: [testItem])
@@ -1697,19 +1697,19 @@ class OCRProcessingServiceTests: XCTestCase {
         
         // Add first batch after a short delay
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            let batch1 = (0..<5).map { MockOCRItem.createReceiptItem(id: "batch1-\($0)") }
+            let batch1 = (0..<5).map { TestMockOCRItem.createReceiptItem(id: "batch1-\($0)") }
             self.mockIO.items = batch1
             self.processingService.notifyWorkAvailable()
             
             // Add second batch while first is still processing
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                let batch2 = (0..<5).map { MockOCRItem.createCheckItem(id: "batch2-\($0)") }
+                let batch2 = (0..<5).map { TestMockOCRItem.createCheckItem(id: "batch2-\($0)") }
                 self.mockIO.items.append(contentsOf: batch2)
                 self.processingService.notifyWorkAvailable()
                 
                 // Add third batch after a longer delay when first might be done
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                    let batch3 = (0..<5).map { MockOCRItem.createReceiptItem(id: "batch3-\($0)") }
+                    let batch3 = (0..<5).map { TestMockOCRItem.createReceiptItem(id: "batch3-\($0)") }
                     self.mockIO.items.append(contentsOf: batch3)
                     self.processingService.notifyWorkAvailable()
                 }
@@ -1737,9 +1737,9 @@ class OCRProcessingServiceTests: XCTestCase {
         
         // Create test items with delay to ensure they wouldn't be processed immediately
         let items = [
-            MockOCRItem.createReceiptItem(id: "startup-cancel-item-1"),
-            MockOCRItem.createReceiptItem(id: "startup-cancel-item-2"),
-            MockOCRItem.createReceiptItem(id: "startup-cancel-item-3")
+            TestMockOCRItem.createReceiptItem(id: "startup-cancel-item-1"),
+            TestMockOCRItem.createReceiptItem(id: "startup-cancel-item-2"),
+            TestMockOCRItem.createReceiptItem(id: "startup-cancel-item-3")
         ]
         
         // Initialize IO with these items and a long delay
@@ -1796,9 +1796,9 @@ class OCRProcessingServiceTests: XCTestCase {
         
         // Create a large batch of items (all receipts for simplicity)
         let batchSize = 20
-        var largeBatch: [MockOCRItem] = []
+        var largeBatch: [TestMockOCRItem] = []
         for i in 0..<batchSize {
-            largeBatch.append(MockOCRItem.createReceiptItem(id: "perf-item-\(i)"))
+            largeBatch.append(TestMockOCRItem.createReceiptItem(id: "perf-item-\(i)"))
         }
         
         // Initialize IO with these items

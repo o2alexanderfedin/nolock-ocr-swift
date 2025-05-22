@@ -2,7 +2,7 @@ import Foundation
 @testable import NolockOCR
 
 /// Manual mock for URLSessionProtocol
-class MockURLSession: URLSessionProtocol {
+class SharedMockURLSession: URLSessionProtocol {
     // Response configuration
     var mockData: Data?
     var mockResponse: URLResponse?
@@ -139,7 +139,7 @@ class MockURLSessionDataTask: URLSessionDataTask, @unchecked Sendable {
     
     // Request tracking
     var mockRequest: URLRequest?
-    weak var mockSession: MockURLSession?
+    weak var mockSession: SharedMockURLSession?
     var completionHandler: ((Data?, URLResponse?, Error?) -> Void)?
     var isCancelled = false
     var isResumed = false
