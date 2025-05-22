@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.0] - 2025-05-25
+
+### Added
+- Added GitHub Actions CI/CD workflow for automated build, test, and release
+- Added SwiftLint configuration for code quality checks
+- Added SwiftDoc configuration for API documentation generation
+- Updated CONTRIBUTING.md with CI/CD information and improved guidelines
+
 ## [1.12.0] - 2025-05-25
 
 ### Added
