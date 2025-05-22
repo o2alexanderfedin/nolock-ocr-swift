@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Integrated Mockingbird framework for improved test mocking
+- Added example test implementations using Mockingbird
+- Added mock generation script and configuration
+
 ## [1.11.0] - 2025-05-24
 
 ### Added
@@ -15,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added tests for document-type specific processing paths
 - Added tests for notifyWorkAvailable functionality
 - Added tests for pendingWorkCounter behavior
+- Added tests for network error handling (timeouts, server errors)
+- Added tests for multiple notifyWorkAvailable calls
+- Added tests for race condition handling
+- Added tests for processing errors
+- Added tests for mixed document types batch
+- Added performance test for large batches
 - Improved testability of OCRProcessingService by supporting test session injection
 
 ## [1.10.0] - 2025-05-22

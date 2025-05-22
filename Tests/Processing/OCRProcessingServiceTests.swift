@@ -979,4 +979,643 @@ class OCRProcessingServiceTests: XCTestCase {
             }
         }
     }
+    
+    // MARK: - Network Error Tests
+    
+    /// Test handling of network errors during processing
+    func testNetworkErrorHandling() {
+        // Set up client session with our mock
+        OCRClient.useCustomURLSession(mockSession)
+        
+        // Configure mock session to return an error
+        let testError = NSError(domain: NSURLErrorDomain, code: NSURLErrorNetworkConnectionLost, userInfo: nil)
+        mockSession.mockError = testError
+        
+        // Create test item
+        let testItem = MockOCRItem.createReceiptItem(id: "error-test-item")
+        
+        // Initialize IO with the item
+        mockIO = MockIO(items: [testItem])
+        
+        // Store processed results
+        var processedResults: [Result<Any, Error>] = []
+        mockIO.onItemProcessed = { _, result in
+            processedResults.append(result)
+        }
+        
+        // Create service with a fast interval
+        processingService = OCRProcessingService(
+            io: mockIO,
+            environment: .production,
+            processingInterval: 0.1
+        )
+        
+        // Create expectations
+        let expectation = XCTestExpectation(description: "Processing completed with error")
+        
+        // Set callbacks
+        processingService.onCompleted = {
+            expectation.fulfill()
+        }
+        
+        // Track status changes
+        processingService.statusHandler = { status in
+            if case .processing = status {
+                // Expected during processing
+            } else if case .completed = status {
+                // Expected at completion
+            }
+        }
+        
+        // Start processing
+        processingService.start()
+        
+        // Wait for expectations
+        wait(for: [expectation], timeout: 2.0)
+        
+        // Verify the item was processed
+        XCTAssertEqual(mockIO.processedItems.count, 1)
+        
+        // Verify we got an error result
+        XCTAssertEqual(processedResults.count, 1)
+        
+        if case .failure(let error) = processedResults.first {
+            // Verify the error is what we expect
+            let nsError = error as NSError
+            XCTAssertEqual(nsError.domain, NSURLErrorDomain)
+            XCTAssertEqual(nsError.code, NSURLErrorNetworkConnectionLost)
+        } else {
+            XCTFail("Expected failure result but got success")
+        }
+    }
+    
+    /// Test handling of server errors (HTTP status codes)
+    func testServerErrorHandling() {
+        // Set up client session with our mock
+        OCRClient.useCustomURLSession(mockSession)
+        
+        // Configure mock session to return a server error
+        let errorResponse = HTTPURLResponse(
+            url: URL(string: "https://ocr-checks-worker.af-4a0.workers.dev/receipt")!,
+            statusCode: 500,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )!
+        mockSession.mockResponse = errorResponse
+        mockSession.mockData = Self.mockErrorResponseJSON.data(using: .utf8)!
+        
+        // Create test item
+        let testItem = MockOCRItem.createReceiptItem(id: "server-error-test-item")
+        
+        // Initialize IO with the item
+        mockIO = MockIO(items: [testItem])
+        
+        // Store processed results
+        var processedResults: [Result<Any, Error>] = []
+        mockIO.onItemProcessed = { _, result in
+            processedResults.append(result)
+        }
+        
+        // Create service with a fast interval
+        processingService = OCRProcessingService(
+            io: mockIO,
+            environment: .production,
+            processingInterval: 0.1
+        )
+        
+        // Create expectations
+        let expectation = XCTestExpectation(description: "Processing completed with server error")
+        
+        // Set callbacks
+        processingService.onCompleted = {
+            expectation.fulfill()
+        }
+        
+        // Start processing
+        processingService.start()
+        
+        // Wait for expectations
+        wait(for: [expectation], timeout: 2.0)
+        
+        // Verify the item was processed
+        XCTAssertEqual(mockIO.processedItems.count, 1)
+        
+        // Verify we got an error result
+        XCTAssertEqual(processedResults.count, 1)
+        
+        if case .failure(let error) = processedResults.first {
+            // Verify the error contains information about the server error
+            let nsError = error as NSError
+            XCTAssertTrue(nsError.localizedDescription.contains("500") || 
+                           nsError.localizedDescription.contains("server error") ||
+                           nsError.localizedDescription.contains("Invalid image format"),
+                          "Error should contain information about the server error")
+        } else {
+            XCTFail("Expected failure result but got success")
+        }
+    }
+    
+    /// Test handling of timeout errors
+    func testTimeoutErrorHandling() {
+        // Set up client session with our mock
+        OCRClient.useCustomURLSession(mockSession)
+        
+        // Configure mock session to delay and then time out
+        mockSession.delayResponse = 0.5 // 0.5 second delay
+        mockSession.mockError = NSError(domain: NSURLErrorDomain, code: NSURLErrorTimedOut, userInfo: nil)
+        
+        // Create test item
+        let testItem = MockOCRItem.createReceiptItem(id: "timeout-test-item")
+        
+        // Initialize IO with the item
+        mockIO = MockIO(items: [testItem])
+        
+        // Store processed results
+        var processedResults: [Result<Any, Error>] = []
+        mockIO.onItemProcessed = { _, result in
+            processedResults.append(result)
+        }
+        
+        // Create service with a fast interval
+        processingService = OCRProcessingService(
+            io: mockIO,
+            environment: .production,
+            processingInterval: 0.1
+        )
+        
+        // Create expectations
+        let expectation = XCTestExpectation(description: "Processing completed with timeout")
+        
+        // Set callbacks
+        processingService.onCompleted = {
+            expectation.fulfill()
+        }
+        
+        // Start processing
+        processingService.start()
+        
+        // Wait for expectations
+        wait(for: [expectation], timeout: 2.0)
+        
+        // Verify the item was processed
+        XCTAssertEqual(mockIO.processedItems.count, 1)
+        
+        // Verify we got an error result
+        XCTAssertEqual(processedResults.count, 1)
+        
+        if case .failure(let error) = processedResults.first {
+            // Verify the error is a timeout error
+            let nsError = error as NSError
+            XCTAssertEqual(nsError.domain, NSURLErrorDomain)
+            XCTAssertEqual(nsError.code, NSURLErrorTimedOut)
+        } else {
+            XCTFail("Expected failure result but got success")
+        }
+    }
+    
+    // MARK: - Multiple Work Notification Tests
+    
+    /// Test multiple notifyWorkAvailable calls
+    func testMultipleWorkNotifications() {
+        // Set up client session with our mock
+        OCRClient.useCustomURLSession(mockSession)
+        
+        // Configure mock session for normal operation
+        mockSession.reset()
+        mockSession.mockResponse = HTTPURLResponse(
+            url: URL(string: "https://ocr-checks-worker.af-4a0.workers.dev/receipt")!,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )!
+        mockSession.mockData = Self.mockReceiptResponseJSON.data(using: .utf8)!
+        
+        // Start with empty IO
+        mockIO = MockIO(items: [])
+        
+        // Create service with a slightly slower interval for testing
+        processingService = OCRProcessingService(
+            io: mockIO,
+            environment: .production,
+            processingInterval: 0.2
+        )
+        
+        // Track completion events
+        var completionCount = 0
+        processingService.onCompleted = {
+            completionCount += 1
+        }
+        
+        // Track status changes
+        var maxPendingWorkCount = 0
+        processingService.statusHandler = { status in
+            if case let .processing(_, total) = status {
+                let pendingCount = total - 1 // Subtract the current item
+                maxPendingWorkCount = max(maxPendingWorkCount, pendingCount)
+            }
+        }
+        
+        // Create expectations
+        let finalCompletionExpectation = XCTestExpectation(description: "All processing completed")
+        
+        // Start processing with empty queue
+        processingService.start()
+        
+        // Dispatch multiple notifyWorkAvailable calls with new items
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            // Add first batch of items
+            self.mockIO.items = [MockOCRItem.createReceiptItem(id: "notify-item-1")]
+            self.processingService.notifyWorkAvailable()
+            
+            // Add more items in quick succession
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                self.mockIO.items.append(MockOCRItem.createReceiptItem(id: "notify-item-2"))
+                self.processingService.notifyWorkAvailable()
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    self.mockIO.items.append(MockOCRItem.createReceiptItem(id: "notify-item-3"))
+                    self.processingService.notifyWorkAvailable()
+                    
+                    // Final completion check
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        finalCompletionExpectation.fulfill()
+                    }
+                }
+            }
+        }
+        
+        // Wait for final completion
+        wait(for: [finalCompletionExpectation], timeout: 3.0)
+        
+        // Verify that all items were processed
+        XCTAssertEqual(mockIO.processedItems.count, 3)
+        
+        // Verify that the pendingWorkCounter was properly incremented
+        XCTAssertGreaterThanOrEqual(maxPendingWorkCount, 1, "pendingWorkCounter should have been incremented")
+        
+        // Verify that we saw multiple completion events (at least one per batch)
+        XCTAssertGreaterThanOrEqual(completionCount, 1)
+    }
+    
+    /// Test race condition handling with concurrent work notifications
+    func testRaceConditionHandling() {
+        // Set up client session with our mock
+        OCRClient.useCustomURLSession(mockSession)
+        
+        // Configure mock session with delay to make race conditions more likely
+        mockSession.reset()
+        mockSession.delayResponse = 0.2
+        mockSession.mockResponse = HTTPURLResponse(
+            url: URL(string: "https://ocr-checks-worker.af-4a0.workers.dev/receipt")!,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )!
+        mockSession.mockData = Self.mockReceiptResponseJSON.data(using: .utf8)!
+        
+        // Create IO with one initial item and race condition simulation
+        let initialItem = MockOCRItem.createReceiptItem(id: "race-initial-item")
+        mockIO = MockIO(items: [initialItem], processingDelay: 0.1)
+        mockIO.simulateRaceCondition = true
+        
+        // Create service with a faster interval
+        processingService = OCRProcessingService(
+            io: mockIO,
+            environment: .production,
+            processingInterval: 0.1
+        )
+        
+        // Create expectations for multiple completions
+        let firstCompletionExpectation = XCTestExpectation(description: "First processing cycle completed")
+        var completionCount = 0
+        
+        // Set callbacks
+        processingService.onCompleted = {
+            completionCount += 1
+            if completionCount == 1 {
+                firstCompletionExpectation.fulfill()
+            }
+        }
+        
+        // Start processing
+        processingService.start()
+        
+        // Wait for first completion
+        wait(for: [firstCompletionExpectation], timeout: 2.0)
+        
+        // Create second expectation for the race condition items
+        let secondCompletionExpectation = XCTestExpectation(description: "Race condition items processed")
+        
+        // Update completion handler for second completion
+        processingService.onCompleted = {
+            secondCompletionExpectation.fulfill()
+        }
+        
+        // Wait for the race condition handling to complete
+        wait(for: [secondCompletionExpectation], timeout: 2.0)
+        
+        // Verify at least two items were processed (initial + race condition)
+        XCTAssertGreaterThanOrEqual(mockIO.processedItems.count, 2)
+        
+        // Verify we saw at least one item with "race-condition" in the ID
+        var foundRaceConditionItem = false
+        for item in mockIO.processedItems {
+            if item.id.contains("race-condition") {
+                foundRaceConditionItem = true
+                break
+            }
+        }
+        
+        XCTAssertTrue(foundRaceConditionItem, "Should have processed at least one race condition item")
+    }
+    
+    // MARK: - Processing Error Tests
+    
+    /// Test handling of invalid image data
+    func testInvalidImageDataHandling() {
+        // Set up client session with our mock
+        OCRClient.useCustomURLSession(mockSession)
+        
+        // Configure mock session to return an error for invalid image data
+        mockSession.reset()
+        mockSession.mockResponse = HTTPURLResponse(
+            url: URL(string: "https://ocr-checks-worker.af-4a0.workers.dev/receipt")!,
+            statusCode: 400,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )!
+        mockSession.mockData = Self.mockErrorResponseJSON.data(using: .utf8)!
+        
+        // Create test item with invalid image data (empty data)
+        let invalidImageData = Data(count: 10) // Very small data that would be invalid as an image
+        let testItem = MockOCRItem(
+            id: "invalid-image-item",
+            imageData: invalidImageData,
+            documentType: .receipt
+        )
+        
+        // Initialize IO with the item
+        mockIO = MockIO(items: [testItem])
+        
+        // Store processed results
+        var processedResults: [Result<Any, Error>] = []
+        mockIO.onItemProcessed = { _, result in
+            processedResults.append(result)
+        }
+        
+        // Create service with a fast interval
+        processingService = OCRProcessingService(
+            io: mockIO,
+            environment: .production,
+            processingInterval: 0.1
+        )
+        
+        // Create expectations
+        let expectation = XCTestExpectation(description: "Processing completed with image error")
+        
+        // Set callbacks
+        processingService.onCompleted = {
+            expectation.fulfill()
+        }
+        
+        // Start processing
+        processingService.start()
+        
+        // Wait for expectations
+        wait(for: [expectation], timeout: 2.0)
+        
+        // Verify the item was processed
+        XCTAssertEqual(mockIO.processedItems.count, 1)
+        
+        // Verify we got an error result
+        XCTAssertEqual(processedResults.count, 1)
+        
+        if case .failure(let error) = processedResults.first {
+            // Just verify we got some kind of error
+            XCTAssertNotNil(error)
+        } else {
+            XCTFail("Expected failure result but got success")
+        }
+    }
+    
+    /// Test cancellation during processing
+    func testCancellationDuringProcessing() {
+        // Set up client session with our mock
+        OCRClient.useCustomURLSession(mockSession)
+        
+        // Configure mock session with a long delay
+        mockSession.reset()
+        mockSession.delayResponse = 0.5 // 0.5 second delay
+        mockSession.mockResponse = HTTPURLResponse(
+            url: URL(string: "https://ocr-checks-worker.af-4a0.workers.dev/receipt")!,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )!
+        mockSession.mockData = Self.mockReceiptResponseJSON.data(using: .utf8)!
+        
+        // Create a batch of items
+        let items = [
+            MockOCRItem.createReceiptItem(id: "cancel-item-1"),
+            MockOCRItem.createReceiptItem(id: "cancel-item-2"),
+            MockOCRItem.createReceiptItem(id: "cancel-item-3")
+        ]
+        
+        // Initialize IO with these items
+        mockIO = MockIO(items: items)
+        
+        // Create service with a fast interval
+        processingService = OCRProcessingService(
+            io: mockIO,
+            environment: .production,
+            processingInterval: 0.1
+        )
+        
+        // Track status changes
+        var sawCancelledStatus = false
+        processingService.statusHandler = { status in
+            if case .cancelled = status {
+                sawCancelledStatus = true
+            }
+        }
+        
+        // Start processing
+        processingService.start()
+        
+        // Wait a bit then cancel processing
+        let cancellationExpectation = XCTestExpectation(description: "Cancellation completed")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            // Cancel processing while items are still being processed
+            self.processingService.cancel()
+            
+            // Give a little time for cancellation to complete
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                cancellationExpectation.fulfill()
+            }
+        }
+        
+        // Wait for cancellation to complete
+        wait(for: [cancellationExpectation], timeout: 1.0)
+        
+        // Verify we saw the cancelled status
+        XCTAssertTrue(sawCancelledStatus, "Service should have reported cancelled status")
+        
+        // Verify we processed fewer than all items
+        XCTAssertLessThan(mockIO.processedItems.count, items.count)
+    }
+    
+    // MARK: - Mixed Document Types Tests
+    
+    /// Test processing a batch with mixed document types
+    func testMixedDocumentTypesBatch() {
+        // Set up client session with our mock
+        OCRClient.useCustomURLSession(mockSession)
+        
+        // Configure mock session for all document types
+        mockSession.reset()
+        let mockResponse = HTTPURLResponse(
+            url: URL(string: "https://ocr-checks-worker.af-4a0.workers.dev/receipt")!,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )!
+        mockSession.mockResponse = mockResponse
+        mockSession.mockData = Self.mockReceiptResponseJSON.data(using: .utf8)!
+        mockSession.checkResponseData = Self.mockCheckResponseJSON.data(using: .utf8)!
+        mockSession.receiptResponseData = Self.mockReceiptResponseJSON.data(using: .utf8)!
+        mockSession.documentResponseData = Self.mockDocumentResponseJSON.data(using: .utf8)!
+        
+        // Create a mixed batch of items (5 of each type)
+        let mixedBatch = MockOCRItem.createMixedBatch(count: 15) // Will create 5 of each type
+        
+        // Initialize IO with these items
+        mockIO = MockIO(items: mixedBatch)
+        
+        // Track processed items by type
+        var receiptCount = 0
+        var checkCount = 0
+        var autoCount = 0
+        
+        mockIO.onItemProcessed = { item, _ in
+            switch item.documentType {
+            case .receipt:
+                receiptCount += 1
+            case .check:
+                checkCount += 1
+            case .auto:
+                autoCount += 1
+            }
+        }
+        
+        // Create service with a fast interval
+        processingService = OCRProcessingService(
+            io: mockIO,
+            environment: .production,
+            processingInterval: 0.1
+        )
+        
+        // Create expectations
+        let expectation = XCTestExpectation(description: "Processing completed")
+        
+        // Set callbacks
+        processingService.onCompleted = {
+            expectation.fulfill()
+        }
+        
+        // Start processing
+        processingService.start()
+        
+        // Wait for expectations
+        wait(for: [expectation], timeout: 5.0)
+        
+        // Verify all items were processed
+        XCTAssertEqual(mockIO.processedItems.count, mixedBatch.count)
+        
+        // Verify we processed items of each type
+        XCTAssertGreaterThan(receiptCount, 0, "Should have processed at least one receipt")
+        XCTAssertGreaterThan(checkCount, 0, "Should have processed at least one check")
+        XCTAssertGreaterThan(autoCount, 0, "Should have processed at least one auto-detect document")
+        
+        // Verify each endpoint was used
+        var usedReceiptEndpoint = false
+        var usedCheckEndpoint = false
+        var usedProcessEndpoint = false
+        
+        for request in mockSession.requestsReceived {
+            if let path = request.url?.path {
+                if path.contains("/receipt") {
+                    usedReceiptEndpoint = true
+                } else if path.contains("/check") {
+                    usedCheckEndpoint = true
+                } else if path.contains("/process") {
+                    usedProcessEndpoint = true
+                }
+            }
+        }
+        
+        XCTAssertTrue(usedReceiptEndpoint, "Should have used the receipt endpoint")
+        XCTAssertTrue(usedCheckEndpoint, "Should have used the check endpoint")
+        XCTAssertTrue(usedProcessEndpoint, "Should have used the process endpoint")
+    }
+    
+    /// Test processing performance with a large batch
+    func testLargeBatchPerformance() {
+        // Set up client session with our mock
+        OCRClient.useCustomURLSession(mockSession)
+        
+        // Configure mock session for fast responses
+        mockSession.reset()
+        mockSession.mockResponse = HTTPURLResponse(
+            url: URL(string: "https://ocr-checks-worker.af-4a0.workers.dev/receipt")!,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )!
+        mockSession.mockData = Self.mockReceiptResponseJSON.data(using: .utf8)!
+        
+        // Create a large batch of items (all receipts for simplicity)
+        let batchSize = 20
+        var largeBatch: [MockOCRItem] = []
+        for i in 0..<batchSize {
+            largeBatch.append(MockOCRItem.createReceiptItem(id: "perf-item-\(i)"))
+        }
+        
+        // Initialize IO with these items
+        mockIO = MockIO(items: largeBatch)
+        
+        // Create service with a very fast interval for performance testing
+        processingService = OCRProcessingService(
+            io: mockIO,
+            environment: .production,
+            processingInterval: 0.05 // Very fast for performance testing
+        )
+        
+        // Create expectations
+        let expectation = XCTestExpectation(description: "Processing completed")
+        
+        // Set callbacks
+        processingService.onCompleted = {
+            expectation.fulfill()
+        }
+        
+        // Start processing and measure performance
+        let startTime = Date()
+        processingService.start()
+        
+        // Wait for expectations
+        wait(for: [expectation], timeout: 10.0)
+        let endTime = Date()
+        
+        // Calculate total processing time
+        let totalTime = endTime.timeIntervalSince(startTime)
+        
+        // Verify all items were processed
+        XCTAssertEqual(mockIO.processedItems.count, batchSize)
+        
+        // Performance assertion (should process at a reasonable rate)
+        // This is a soft assertion since test environments can vary
+        let itemsPerSecond = Double(batchSize) / totalTime
+        print("Processing performance: \(itemsPerSecond) items per second")
+        XCTAssertGreaterThan(itemsPerSecond, 1.0, "Should process at least 1 item per second")
+    }
 }
