@@ -1,0 +1,8 @@
+generator:
+  targets:
+    - target: NolockOCR
+      testTarget: NolockOCRTests
+      output: Tests/Mocks/Generated
+  diagnostics:
+    warning:
+      unused: true

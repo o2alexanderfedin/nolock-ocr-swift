@@ -71,3 +71,8 @@ iOSInjectionProject/
 *.png
 *.heic
 *.HEIC
+
+# Mockingbird binary and generated files
+bin/mockingbird/Mockingbird/
+bin/mockingbird/Mockingbird-*.zip
+Tests/Mocks/Generated/
