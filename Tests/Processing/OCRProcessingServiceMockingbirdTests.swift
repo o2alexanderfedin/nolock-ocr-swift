@@ -3,14 +3,42 @@ import Foundation
 @testable import NolockOCR
 import Mockingbird
 
+// IMPORTANT: This test file requires generated mocks before it can be run.
+// Run ./generate-mocks.sh first to generate the necessary mock types.
+
 /// OCRProcessingService tests using Mockingbird for mocking
 class OCRProcessingServiceMockingbirdTests: XCTestCase {
     
     // MARK: - Test Properties
     
-    var mockSession: URLSessionProtocolMock!
-    var mockIO: OCRProcessingIOMock<MockOCRItem>!
-    var processingService: OCRProcessingService<OCRProcessingIOMock<MockOCRItem>>!
+    // The following type definitions will be available after running generate-mocks.sh
+    // For now, we'll use URLSessionProtocol and a custom protocol for the IO
+    var mockSession: URLSessionProtocol!
+    var mockIO: MockProcessingIO!
+    var processingService: OCRProcessingService<MockProcessingIO>!
+    
+    // Protocol for our mock IO implementation
+    protocol MockProcessingIOProtocol: OCRProcessingIO where Item == MockOCRItem {}
+    
+    // Mock implementation conforming to our protocol
+    class MockProcessingIO: MockProcessingIOProtocol {
+        typealias Item = MockOCRItem
+        
+        var getNextItemToProcessWasCalled = false
+        var itemProcessedWasCalled = false
+        var itemToReturn: MockOCRItem?
+        var capturedResults: [Result<Any, Error>] = []
+        
+        func getNextItemToProcess() async throws -> MockOCRItem? {
+            getNextItemToProcessWasCalled = true
+            return itemToReturn
+        }
+        
+        func itemProcessed(item: MockOCRItem, result: Result<Any, Error>) async throws {
+            itemProcessedWasCalled = true
+            capturedResults.append(result)
+        }
+    }
     
     // MARK: - Test Data
     
