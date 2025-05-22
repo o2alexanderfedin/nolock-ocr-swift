@@ -1,7 +1,8 @@
 import Foundation
 @testable import NolockOCR
 
-/// Manual mock for URLSessionProtocol
+/// Shared mock for URLSessionProtocol used across multiple test classes.
+/// To avoid ambiguity with other mock implementations, this class is named SharedMockURLSession.
 class SharedMockURLSession: URLSessionProtocol {
     // Response configuration
     var mockData: Data?
@@ -128,7 +129,8 @@ class SharedMockURLSession: URLSessionProtocol {
     }
 }
 
-/// Mock URLSessionDataTask for testing
+/// Shared mock for URLSessionDataTask used with SharedMockURLSession.
+/// To avoid ambiguity with other mock implementations, this class is named SharedMockURLSessionDataTask.
 class SharedMockURLSessionDataTask: URLSessionDataTask, @unchecked Sendable {
     // Configuration
     var mockData: Data?

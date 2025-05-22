@@ -10,12 +10,10 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
     
     // MARK: - Test Properties
     
-    // Using mock classes from the common Mocks directory
-    var mockSession: SharedMockURLSession!
-    var mockIO: MockProcessingIO!
+    // Using shared mock classes from the Mocks subdirectories
+    var mockSession: SharedMockURLSession! // From Tests/Mocks/URL/
+    var mockIO: MockProcessingIO! // From Tests/Mocks/Processing/
     var processingService: OCRProcessingService<MockProcessingIO>!
-    
-    // Using MockOCRItem and MockProcessingIO from the Mocks directory
     
     // MARK: - Test Data
     

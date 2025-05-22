@@ -2,13 +2,27 @@
 
 This directory contains manual mock implementations for testing the NolockOCR Swift package.
 
-## Manual Mocks
+## Shared Mocks
 
-The following manual mock implementations are provided:
+The mock implementations have been organized into subdirectories to avoid naming conflicts:
 
-- `MockURLSession.swift` - A mock implementation of `URLSessionProtocol` for testing network interactions
-- `MockProcessingIO.swift` - A mock implementation of `OCRProcessingIO` for testing the processing service
-- `MockOCRItem` - A mock implementation of `OCRProcessable` for testing with document items
+### URL Mocks (`URL/`)
+
+- `SharedMockURLSession` - A shared mock implementation of `URLSessionProtocol` for testing network interactions
+- `SharedMockURLSessionDataTask` - A shared mock implementation of `URLSessionDataTask`
+
+### Processing Mocks (`Processing/`)
+
+- `ProcessingMockOCRItem` - A shared mock implementation of `OCRProcessable` for testing with document items
+- `MockProcessingIO` - A mock implementation of `OCRProcessingIO` for testing the processing service
+
+## Avoiding Ambiguities
+
+To prevent ambiguous references in Swift when multiple mock implementations exist with similar names:
+
+1. Always use the fully qualified name of the shared mock (e.g., `SharedMockURLSession` instead of `MockURLSession`)
+2. If creating test-specific mocks, use a unique prefix (e.g., `TestMockURLSession`) to distinguish them
+3. Import shared mocks where needed instead of recreating them in each test file
 
 ## Usage in Tests
 
@@ -19,11 +33,11 @@ import XCTest
 @testable import NolockOCR
 
 class MyTests: XCTestCase {
-    var mockSession: MockURLSession!
+    var mockSession: SharedMockURLSession!
     var mockIO: MockProcessingIO!
     
     override func setUp() {
-        mockSession = MockURLSession()
+        mockSession = SharedMockURLSession()
         mockIO = MockProcessingIO()
         
         // Configure mocks as needed
@@ -69,3 +83,5 @@ When adding new mock implementations:
 2. Provide clear documentation for your mock's behavior
 3. Include utility methods for common testing scenarios
 4. Ensure your mock can be used without additional dependencies
+5. Use unique, descriptive class names to avoid ambiguities
+6. Place mocks in the appropriate subdirectory based on their functionality

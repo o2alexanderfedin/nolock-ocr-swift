@@ -1,7 +1,8 @@
 import Foundation
 @testable import NolockOCR
 
-/// Mock implementation of OCRProcessable for testing
+/// Mock implementation of OCRProcessable for testing shared across multiple test classes.
+/// To avoid ambiguity with other mock implementations, this class is named ProcessingMockOCRItem.
 class ProcessingMockOCRItem: OCRProcessable, Identifiable {
     let id: String
     let imageData: Data
@@ -37,7 +38,8 @@ class ProcessingMockOCRItem: OCRProcessable, Identifiable {
     }
 }
 
-/// Manual mock implementation of OCRProcessingIO for testing
+/// Manual mock implementation of OCRProcessingIO for testing shared across test classes.
+/// This class uses ProcessingMockOCRItem as its Item type to avoid ambiguity with other mock implementations.
 class MockProcessingIO: OCRProcessingIO {
     typealias Item = ProcessingMockOCRItem
     
