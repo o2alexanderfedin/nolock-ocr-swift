@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added test for concurrent batch processing with multiple notifications
   - Added test for cancellation during startup phase
   - Improved test documentation and assertions
+- Properly integrated Mockingbird testing framework:
+  - Added Mockingbird dependency to Package.swift
+  - Created .mockingbird.yaml configuration
+  - Added generate-mocks.sh script for mock generation
+  - Updated CI/CD workflow to include mock generation step
+  - Created OCRProcessingServiceMockingbirdTests with pure mocking approach
 
 ## [1.13.0] - 2025-05-25
 

@@ -1,0 +1,56 @@
+included:
+  - Sources
+  - Tests
+  - Examples
+
+excluded:
+  - .build
+  - Tests/Mocks/Generated
+
+opt_in_rules:
+  - array_init
+  - closure_end_indentation
+  - closure_spacing
+  - collection_alignment
+  - contains_over_filter_count
+  - contains_over_filter_is_empty
+  - empty_count
+  - empty_string
+  - explicit_init
+  - fatal_error_message
+  - first_where
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - joined_default_parameter
+  - last_where
+  - literal_expression_end_indentation
+  - multiline_parameters
+  - operator_usage_whitespace
+  - overridden_super_call
+  - prohibited_super_call
+  - redundant_nil_coalescing
+  - redundant_type_annotation
+  - sorted_first_last
+  - unneeded_parentheses_in_closure_argument
+  - unused_import
+  - yoda_condition
+
+disabled_rules:
+  - trailing_whitespace
+  - todo
+  - closure_body_length
+  - vertical_whitespace
+  - trailing_newline
+  - file_length
+  - line_length
+
+force_cast: warning
+force_try: warning
+function_body_length:
+  warning: 60
+  error: 100
+type_body_length:
+  warning: 400
+  error: 500
+
+reporter: "xcode"

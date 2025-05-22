@@ -23,7 +23,9 @@ let package = Package(
             name: "OCRExamples",
             targets: ["OCRExamples"])
     ],
-    dependencies: [],
+    dependencies: [
+        .package(url: "https://github.com/birdrides/mockingbird.git", from: "0.20.0")
+    ],
     targets: [
         .target(
             name: "NolockOCR",
@@ -40,7 +42,10 @@ let package = Package(
             sources: ["Main.swift"]),
         .testTarget(
             name: "NolockOCRTests",
-            dependencies: ["NolockOCR"],
+            dependencies: [
+                "NolockOCR",
+                .product(name: "Mockingbird", package: "mockingbird")
+            ],
             path: "Tests",
             exclude: ["README.md"],
             resources: [
