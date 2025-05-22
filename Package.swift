@@ -48,7 +48,7 @@ let package = Package(
                 .product(name: "Mockingbird", package: "mockingbird")
             ],
             path: "Tests",
-            exclude: ["README.md", "Mocks/README.md"],
+            exclude: ["README.md", "Mocks/README.md", "Mocks/MockingbirdExample.swift"],
             resources: [
                 .process("Resources")
             ]),
