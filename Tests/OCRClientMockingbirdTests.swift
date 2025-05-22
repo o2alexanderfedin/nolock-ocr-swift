@@ -3,14 +3,80 @@ import Foundation
 @testable import NolockOCR
 import Mockingbird
 
+// IMPORTANT: This test file requires generated mocks before it can be run.
+// Run ./generate-mocks.sh first to generate the necessary mock types.
+
 /// Tests for OCRClient using Mockingbird for mocking
 class OCRClientMockingbirdTests: XCTestCase {
     
     // MARK: - Properties
     
-    var mockSession: URLSessionProtocolMock!
-    var mockDataTask: URLSessionDataTaskMock!
+    // For now, use our custom mock implementations instead of the generated mocks
+    var mockSession: MockURLSession!
+    var mockDataTask: MockURLSessionDataTask!
     var client: OCRClient!
+    
+    // Custom mock implementations
+    class MockURLSession: URLSessionProtocol {
+        var dataForRequestCalled = false
+        var dataTaskCalled = false
+        var lastRequest: URLRequest?
+        var responseToReturn: (Data, URLResponse)?
+        var errorToThrow: Error?
+        var mockDataTask: MockURLSessionDataTask!
+        
+        func data(from url: URL, delegate: URLSessionTaskDelegate?) async throws -> (Data, URLResponse) {
+            dataForRequestCalled = true
+            if let error = errorToThrow {
+                throw error
+            }
+            if let response = responseToReturn {
+                return response
+            }
+            throw NSError(domain: "MockURLSession", code: 1, userInfo: [NSLocalizedDescriptionKey: "No response configured"])
+        }
+        
+        func data(for request: URLRequest, delegate: URLSessionTaskDelegate?) async throws -> (Data, URLResponse) {
+            dataForRequestCalled = true
+            lastRequest = request
+            if let error = errorToThrow {
+                throw error
+            }
+            if let response = responseToReturn {
+                return response
+            }
+            throw NSError(domain: "MockURLSession", code: 1, userInfo: [NSLocalizedDescriptionKey: "No response configured"])
+        }
+        
+        func dataTask(with request: URLRequest, completionHandler: @escaping (Data?, URLResponse?, Error?) -> Void) -> URLSessionDataTask {
+            dataTaskCalled = true
+            lastRequest = request
+            
+            if mockDataTask == nil {
+                mockDataTask = MockURLSessionDataTask()
+            }
+            
+            mockDataTask.completionHandler = completionHandler
+            return mockDataTask
+        }
+    }
+    
+    class MockURLSessionDataTask: URLSessionDataTask {
+        var resumeCalled = false
+        var cancelCalled = false
+        var completionHandler: ((Data?, URLResponse?, Error?) -> Void)?
+        
+        override func resume() {
+            resumeCalled = true
+            // Call completion handler with configured response
+            completionHandler?(nil, nil, nil)
+        }
+        
+        override func cancel() {
+            cancelCalled = true
+            completionHandler?(nil, nil, NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled, userInfo: nil))
+        }
+    }
     
     // MARK: - Test Data
     
@@ -54,9 +120,10 @@ class OCRClientMockingbirdTests: XCTestCase {
     override func setUp() {
         super.setUp()
         
-        // Initialize mocks
-        mockSession = mock(URLSessionProtocol.self)
-        mockDataTask = mock(URLSessionDataTask.self)
+        // Initialize our custom mocks instead of using Mockingbird's mock() function
+        mockSession = MockURLSession()
+        mockDataTask = MockURLSessionDataTask()
+        mockSession.mockDataTask = mockDataTask
         
         // Create the client with the mock session
         client = OCRClient(environment: .production, session: mockSession)
@@ -91,19 +158,19 @@ class OCRClientMockingbirdTests: XCTestCase {
         let successResponse = createMockResponse(path: "/check")
         
         // Set up mock session behavior
-        given(mockSession.data(for: any(), delegate: any()))
-            .willReturn((responseData, successResponse))
+        mockSession.responseToReturn = (responseData, successResponse)
         
         // ACT
         // Call the method under test
         let result = try await client.processCheck(imageData: testImageData)
         
         // ASSERT
-        // Verify the session was called with a request to the check endpoint
-        verify(mockSession.data(for: where { request in
-            guard let url = request.url else { return false }
-            return url.absoluteString.contains("/check")
-        }, delegate: any())).wasCalled()
+        // Verify the session was called
+        XCTAssertTrue(mockSession.dataForRequestCalled)
+        
+        // Verify the request URL contains the check endpoint
+        XCTAssertNotNil(mockSession.lastRequest)
+        XCTAssertTrue(mockSession.lastRequest?.url?.absoluteString.contains("/check") ?? false)
         
         // Verify the result contains expected data
         XCTAssertEqual(result.data.checkNumber, "12345")
@@ -120,8 +187,7 @@ class OCRClientMockingbirdTests: XCTestCase {
         let errorResponse = createMockResponse(path: "/check", statusCode: 400)
         
         // Set up mock to return an error response
-        given(mockSession.data(for: any(), delegate: any()))
-            .willReturn((errorData, errorResponse))
+        mockSession.responseToReturn = (errorData, errorResponse)
         
         // ACT & ASSERT
         do {
@@ -135,17 +201,14 @@ class OCRClientMockingbirdTests: XCTestCase {
         }
         
         // Verify the session was called
-        verify(mockSession.data(for: any(), delegate: any())).wasCalled()
+        XCTAssertTrue(mockSession.dataForRequestCalled)
     }
     
     /// Test cancellation handling
     func testCancellation() async {
         // ARRANGE
         // Set up mock session to throw a cancellation error
-        given(mockSession.data(for: any(), delegate: any()))
-            .will { _, _ in
-                throw NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled, userInfo: nil)
-            }
+        mockSession.errorToThrow = NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled, userInfo: nil)
         
         // ACT & ASSERT
         do {
@@ -158,7 +221,7 @@ class OCRClientMockingbirdTests: XCTestCase {
         }
         
         // Verify the session was called
-        verify(mockSession.data(for: any(), delegate: any())).wasCalled()
+        XCTAssertTrue(mockSession.dataForRequestCalled)
     }
     
     /// Test the completion handler version of processCheck
@@ -168,22 +231,20 @@ class OCRClientMockingbirdTests: XCTestCase {
         let responseData = Self.successResponseJSON.data(using: .utf8)!
         let successResponse = createMockResponse(path: "/check")
         
-        // Mock dataTask creation and execution
-        given(mockSession.dataTask(with: any(), completionHandler: any()))
-            .will { request, completionHandler in
-                // Call the completion handler with our mock data
-                completionHandler(responseData, successResponse, nil)
-                return self.mockDataTask
-            }
+        // Configure mock data task to call completion handler with our data
+        mockDataTask.completionHandler = nil // Clear from previous tests
         
-        // Make sure the mock task resumes when called
-        given(mockDataTask.resume()).willReturn(())
+        // Configure our session to set this data when dataTask is called
+        mockSession.mockDataTask = mockDataTask
         
         // Set up expectation
         let expectation = XCTestExpectation(description: "Completion handler called")
         
         // ACT
         client.processCheck(imageData: testImageData) { result in
+            // Call our expectation manually since our mock doesn't automatically call it
+            expectation.fulfill()
+            
             // ASSERT
             switch result {
             case .success(let response):
@@ -193,38 +254,42 @@ class OCRClientMockingbirdTests: XCTestCase {
             case .failure(let error):
                 XCTFail("Expected success but got error: \(error)")
             }
-            expectation.fulfill()
+        }
+        
+        // Manually call the completion handler with our mock data
+        // This is needed because our mock resume() doesn't know about the specific data we want to return
+        if let completionHandler = mockDataTask.completionHandler {
+            completionHandler(responseData, successResponse, nil)
         }
         
         // Wait for the expectation
         wait(for: [expectation], timeout: 1.0)
         
         // Verify the session was called to create a data task
-        verify(mockSession.dataTask(with: any(), completionHandler: any())).wasCalled()
+        XCTAssertTrue(mockSession.dataTaskCalled)
         
         // Verify the task was resumed
-        verify(mockDataTask.resume()).wasCalled()
+        XCTAssertTrue(mockDataTask.resumeCalled)
     }
     
     /// Test cancelProcessing functionality
     func testCancelProcessing() {
         // ARRANGE
-        // Mock dataTask creation
-        given(mockSession.dataTask(with: any(), completionHandler: any()))
-            .willReturn(mockDataTask)
-        
-        // Mock task cancellation
-        given(mockDataTask.resume()).willReturn(())
-        given(mockDataTask.cancel()).willReturn(())
+        // Configure mock data task
+        mockDataTask.completionHandler = nil // Clear from previous tests
         
         // Set up expectation
         let expectation = XCTestExpectation(description: "Completion handler called")
         
         // ACT - Start a request
         client.processCheck(imageData: testImageData) { _ in
-            // This should not be called
+            // This should not be called because we'll cancel before our manual call to the completion handler
             XCTFail("Completion handler should not be called after cancellation")
         }
+        
+        // Verify the data task has been created
+        XCTAssertTrue(mockSession.dataTaskCalled)
+        XCTAssertTrue(mockDataTask.resumeCalled)
         
         // Cancel the request
         let result = client.cancelProcessing()
@@ -240,12 +305,6 @@ class OCRClientMockingbirdTests: XCTestCase {
         
         // Verify cancellation was successful
         XCTAssertTrue(result, "Cancellation should return true")
-        
-        // Verify the task was created and resumed
-        verify(mockSession.dataTask(with: any(), completionHandler: any())).wasCalled()
-        verify(mockDataTask.resume()).wasCalled()
-        
-        // Verify the task was cancelled
-        verify(mockDataTask.cancel()).wasCalled()
+        XCTAssertTrue(mockDataTask.cancelCalled)
     }
 }
