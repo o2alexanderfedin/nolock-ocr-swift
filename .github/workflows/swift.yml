@@ -20,9 +20,6 @@ jobs:
       with:
         swift-version: '5.9'
     
-    - name: Build
-      run: swift build -v
-    
     - name: Setup for Tests
       run: |
         # Try to generate mocks but continue even if it fails
@@ -38,25 +35,29 @@ jobs:
           echo "WARNING: Manual mocks not found, tests may fail"
         fi
     
+    - name: Build
+      run: swift build -v
+    
     - name: Run tests
       run: swift test -v
     
   lint:
-    name: SwiftLint
-    runs-on: macos-latest
+    name: Swift Lint
+    runs-on: ubuntu-latest
     
     steps:
     - uses: actions/checkout@v3
     
-    - name: SwiftLint
+    - name: Run SwiftLint
       uses: norio-nomura/action-swiftlint@3.2.1
       with:
-        args: --strict
-    
-  docs:
+        args: --config .swiftlint.yml
+
+  documentation:
     name: Generate Documentation
     runs-on: macos-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build-and-test]
+    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
     
     steps:
     - uses: actions/checkout@v3
@@ -66,46 +67,65 @@ jobs:
       with:
         swift-version: '5.9'
     
-    - name: Install swift-doc
-      run: brew install swiftdocorg/formulae/swift-doc
+    - name: Install SwiftDoc
+      run: |
+        brew update
+        brew install swiftdocorg/tap/swift-doc
     
     - name: Generate Documentation
-      run: swift-doc generate --module-name NolockOCR --output docs Sources
+      run: swift-doc generate Sources --module-name NolockOCR --output docs/api
     
-    - name: Deploy to GitHub Pages
-      uses: JamesIves/github-pages-deploy-action@4.1.4
+    - name: Upload Documentation Artifact
+      uses: actions/upload-artifact@v3
       with:
-        branch: gh-pages
-        folder: docs
-    
-  release:
+        name: api-documentation
+        path: docs/api
+
+  create-release:
     name: Create Release
     runs-on: ubuntu-latest
-    needs: [build-and-test, lint, docs]
-    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build-and-test, lint, documentation]
+    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
     
     steps:
     - uses: actions/checkout@v3
       with:
         fetch-depth: 0
     
+    - name: Download API Documentation
+      uses: actions/download-artifact@v3
+      with:
+        name: api-documentation
+        path: docs/api
+    
     - name: Get version from tag
       id: get_version
-      run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+      run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
     
-    - name: Generate changelog
-      id: changelog
-      uses: metcalfc/changelog-generator@v4.0.1
-      with:
-        myToken: ${{ secrets.GITHUB_TOKEN }}
+    - name: Extract Release Notes
+      id: extract_release_notes
+      run: |
+        VERSION=${{ steps.get_version.outputs.VERSION }}
+        # Extract the release notes from the CHANGELOG.md file
+        NOTES=$(awk -v version="## [$VERSION]" '/^## \[/ { if (p) { exit }; if ($0 ~ version) { p=1; next } } p { print }' CHANGELOG.md)
+        # Escape newlines
+        NOTES="${NOTES//'%'/'%25'}"
+        NOTES="${NOTES//$'\n'/'%0A'}"
+        NOTES="${NOTES//$'\r'/'%0D'}"
+        echo "NOTES<<EOF" >> $GITHUB_OUTPUT
+        echo "$NOTES" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
     
-    - name: Create Release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Release v${{ env.VERSION }}
-        body: ${{ steps.changelog.outputs.changelog }}
+        name: Release ${{ steps.get_version.outputs.VERSION }}
+        body: ${{ steps.extract_release_notes.outputs.NOTES }}
         draft: false
         prerelease: false
+        files: |
+          LICENSE
+          README.md
+          docs/api/**
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

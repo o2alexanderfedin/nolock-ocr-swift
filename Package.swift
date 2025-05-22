@@ -24,7 +24,7 @@ let package = Package(
             targets: ["OCRExamples"])
     ],
     dependencies: [
-        .package(url: "https://github.com/birdrides/mockingbird.git", from: "0.20.0")
+        .package(url: "https://github.com/birdrides/mockingbird.git", from: "0.20.0"),
     ],
     targets: [
         .target(
@@ -37,7 +37,8 @@ let package = Package(
             path: "Examples",
             exclude: [
                 "AsyncCheckProcessingExample.swift",
-                "CheckProcessingExample.swift"
+                "CheckProcessingExample.swift",
+                "BatchProcessingExample.swift"
             ],
             sources: ["Main.swift"]),
         .testTarget(
