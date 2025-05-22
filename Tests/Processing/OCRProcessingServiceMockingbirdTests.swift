@@ -1,10 +1,9 @@
 import XCTest
 import Foundation
 @testable import NolockOCR
-import Mockingbird
 
-// IMPORTANT: This test file requires generated mocks before it can be run.
-// Run ./generate-mocks.sh first to generate the necessary mock types.
+// IMPORTANT: This test file uses manual mocks in Tests/Mocks directory.
+// For simplicity, we're not using Mockingbird-generated mocks to ensure CI/CD compatibility.
 
 /// OCRProcessingService tests using Mockingbird for mocking
 class OCRProcessingServiceMockingbirdTests: XCTestCase {

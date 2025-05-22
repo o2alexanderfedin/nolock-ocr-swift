@@ -46,7 +46,7 @@ jobs:
     - name: Run SwiftLint
       uses: norio-nomura/action-swiftlint@3.2.1
       with:
-        args: --strict
+        args: --config .swiftlint.yml
 
   documentation:
     name: Generate Documentation
