@@ -15,6 +15,81 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
     var mockIO: MockIO!
     var processingService: OCRProcessingService<MockIO>!
     
+    // Mock URLSession for testing
+    class MockURLSession: URLSessionProtocol {
+        // Response configuration
+        var mockData: Data?
+        var mockResponse: URLResponse?
+        var mockError: Error?
+        
+        // Tracking properties
+        var requestsReceived: [URLRequest] = []
+        var lastRequestURL: URL?
+        var lastRequestMethod: String?
+        
+        func data(from url: URL, delegate: URLSessionTaskDelegate?) async throws -> (Data, URLResponse) {
+            lastRequestURL = url
+            
+            if let error = mockError {
+                throw error
+            }
+            
+            guard let data = mockData, let response = mockResponse else {
+                throw NSError(domain: "MockURLSession", code: 1, userInfo: [NSLocalizedDescriptionKey: "No mock data or response"])
+            }
+            
+            return (data, response)
+        }
+        
+        func data(for request: URLRequest, delegate: URLSessionTaskDelegate?) async throws -> (Data, URLResponse) {
+            lastRequestURL = request.url
+            lastRequestMethod = request.httpMethod
+            requestsReceived.append(request)
+            
+            if let error = mockError {
+                throw error
+            }
+            
+            guard let data = mockData, let response = mockResponse else {
+                throw NSError(domain: "MockURLSession", code: 1, userInfo: [NSLocalizedDescriptionKey: "No mock data or response"])
+            }
+            
+            return (data, response)
+        }
+        
+        func dataTask(with request: URLRequest, completionHandler: @escaping (Data?, URLResponse?, Error?) -> Void) -> URLSessionDataTask {
+            lastRequestURL = request.url
+            lastRequestMethod = request.httpMethod
+            requestsReceived.append(request)
+            
+            let task = MockURLSessionDataTask()
+            
+            // Schedule completion handler to be called asynchronously
+            DispatchQueue.global().async {
+                if let error = self.mockError {
+                    completionHandler(nil, nil, error)
+                } else if let data = self.mockData, let response = self.mockResponse {
+                    completionHandler(data, response, nil)
+                } else {
+                    completionHandler(nil, nil, NSError(domain: "MockURLSession", code: 1, userInfo: [NSLocalizedDescriptionKey: "No mock data or response"]))
+                }
+            }
+            
+            return task
+        }
+    }
+    
+    // Mock URLSessionDataTask for testing
+    class MockURLSessionDataTask: URLSessionDataTask {
+        override func resume() {
+            // No-op for mock
+        }
+        
+        override func cancel() {
+            // No-op for mock
+        }
+    }
+    
     // Mock OCR item class
     class MockOCRItem: OCRProcessable, Identifiable {
         let id: String
