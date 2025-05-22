@@ -193,7 +193,6 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
         // Verify getNextItemToProcess was called
         XCTAssertGreaterThan(mockIO.getNextItemCallCount, 0, "getNextItemToProcess should be called")
         
-        // Create a test item to verify generic constraints
-        let testItem = ProcessingMockOCRItem.createReceiptItem()
+        // No need to create a test item, we're just testing initialization
     }
 }
