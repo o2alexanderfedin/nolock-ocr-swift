@@ -181,7 +181,7 @@ class OCRProcessingServiceTests: XCTestCase {
     }
     
     /// Enhanced Mock implementation of OCRProcessable for testing
-    class MockOCRItem: OCRProcessable, Identifiable {
+    class TestMockOCRItem: OCRProcessable, Identifiable {
         let id: String
         let imageData: Data
         let documentType: DocumentType
@@ -199,9 +199,9 @@ class OCRProcessingServiceTests: XCTestCase {
         }
         
         /// Create a random receipt item
-        static func createReceiptItem(id: String? = nil) -> MockOCRItem {
+        static func createReceiptItem(id: String? = nil) -> TestMockOCRItem {
             let itemId = id ?? "receipt-\(UUID().uuidString.prefix(8))"
-            return MockOCRItem(
+            return TestMockOCRItem(
                 id: itemId,
                 imageData: createMockImageData(),
                 documentType: .receipt,
@@ -210,9 +210,9 @@ class OCRProcessingServiceTests: XCTestCase {
         }
         
         /// Create a random check item
-        static func createCheckItem(id: String? = nil) -> MockOCRItem {
+        static func createCheckItem(id: String? = nil) -> TestMockOCRItem {
             let itemId = id ?? "check-\(UUID().uuidString.prefix(8))"
-            return MockOCRItem(
+            return TestMockOCRItem(
                 id: itemId,
                 imageData: createMockImageData(),
                 documentType: .check,
@@ -221,9 +221,9 @@ class OCRProcessingServiceTests: XCTestCase {
         }
         
         /// Create a random auto-detect item
-        static func createAutoItem(id: String? = nil) -> MockOCRItem {
+        static func createAutoItem(id: String? = nil) -> TestMockOCRItem {
             let itemId = id ?? "auto-\(UUID().uuidString.prefix(8))"
-            return MockOCRItem(
+            return TestMockOCRItem(
                 id: itemId,
                 imageData: createMockImageData(),
                 documentType: .auto,
@@ -232,8 +232,8 @@ class OCRProcessingServiceTests: XCTestCase {
         }
         
         /// Create a batch of mixed items
-        static func createMixedBatch(count: Int) -> [MockOCRItem] {
-            var items: [MockOCRItem] = []
+        static func createMixedBatch(count: Int) -> [TestMockOCRItem] {
+            var items: [TestMockOCRItem] = []
             for i in 0..<count {
                 let type = i % 3
                 switch type {
@@ -268,7 +268,7 @@ class OCRProcessingServiceTests: XCTestCase {
     
     /// Enhanced Mock implementation of OCRProcessingIO for testing
     class MockIO: OCRProcessingIO {
-        typealias Item = MockOCRItem
+        typealias Item = TestMockOCRItem
         
         // Queue management
         var items: [Item]
@@ -366,7 +366,7 @@ class OCRProcessingServiceTests: XCTestCase {
             
             if simulateRaceCondition {
                 // Add an item to simulate new work becoming available
-                let newItem = MockOCRItem(id: "race-condition-\(UUID().uuidString.prefix(8))")
+                let newItem = TestMockOCRItem(id: "race-condition-\(UUID().uuidString.prefix(8))")
                 await MainActor.run {
                     items.append(newItem)
                 }
@@ -564,7 +564,7 @@ class OCRProcessingServiceTests: XCTestCase {
     
     /// Create a processing service with the specified parameters
     private func createService(
-        items: [MockOCRItem] = [],
+        items: [TestMockOCRItem] = [],
         environment: ClientEnvironment = .production,
         processingInterval: TimeInterval = 0.1
     ) -> OCRProcessingService<MockIO> {
@@ -687,7 +687,7 @@ class OCRProcessingServiceTests: XCTestCase {
     /// Test IO errors during getNextItemToProcess
     func testIOErrorDuringGetNext() {
         // Create IO that will fail during getNextItemToProcess
-        let failingIO = MockIO(items: [MockOCRItem(id: "test-1")], shouldFailOnGetNext: true)
+        let failingIO = MockIO(items: [TestMockOCRItem(id: "test-1")], shouldFailOnGetNext: true)
         
         // Create expectations
         let expectation = XCTestExpectation(description: "Error status received")
@@ -737,7 +737,7 @@ class OCRProcessingServiceTests: XCTestCase {
     /// Test basic functionality with an item
     func testBasicItemProcessing() {
         // Setup test item
-        let testItem = MockOCRItem(id: "test-item")
+        let testItem = TestMockOCRItem(id: "test-item")
         let testIO = MockIO(items: [testItem])
         
         // Create the service
@@ -835,7 +835,7 @@ class OCRProcessingServiceTests: XCTestCase {
         wait(for: [initialCompletionExpectation], timeout: 1.0)
         
         // Now notify work is available and add items
-        let newItem = MockOCRItem(id: "new-item")
+        let newItem = TestMockOCRItem(id: "new-item")
         emptyIO.items = [newItem]
         
         // Create second completion expectation
@@ -862,7 +862,7 @@ class OCRProcessingServiceTests: XCTestCase {
         OCRClient.useCustomURLSession(mockSession)
         
         // Create items
-        let initialItem = MockOCRItem(id: "initial-item")
+        let initialItem = TestMockOCRItem(id: "initial-item")
         
         // Setup IO with dynamic item addition
         mockIO = MockIO(items: [initialItem])
@@ -899,8 +899,8 @@ class OCRProcessingServiceTests: XCTestCase {
             
             // Add items that will be fetched when queue is empty
             let newItems = [
-                MockOCRItem(id: "pending-1"),
-                MockOCRItem(id: "pending-2")
+                TestMockOCRItem(id: "pending-1"),
+                TestMockOCRItem(id: "pending-2")
             ]
             self.mockIO.setItemsToAddWhenEmpty(newItems)
         }
@@ -1360,7 +1360,7 @@ class OCRProcessingServiceTests: XCTestCase {
         
         // Create test item with invalid image data (empty data)
         let invalidImageData = Data(count: 10) // Very small data that would be invalid as an image
-        let testItem = MockOCRItem(
+        let testItem = TestMockOCRItem(
             id: "invalid-image-item",
             imageData: invalidImageData,
             documentType: .receipt

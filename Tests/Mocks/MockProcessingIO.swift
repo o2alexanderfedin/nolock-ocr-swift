@@ -2,7 +2,7 @@ import Foundation
 @testable import NolockOCR
 
 /// Mock implementation of OCRProcessable for testing
-class MockOCRItem: OCRProcessable, Identifiable {
+class ProcessingMockOCRItem: OCRProcessable, Identifiable {
     let id: String
     let imageData: Data
     let documentType: DocumentType
@@ -21,25 +21,25 @@ class MockOCRItem: OCRProcessable, Identifiable {
         self.imageData = data
     }
     
-    static func createReceiptItem(id: String? = nil) -> MockOCRItem {
+    static func createReceiptItem(id: String? = nil) -> ProcessingMockOCRItem {
         let itemId = id ?? "receipt-\(UUID().uuidString.prefix(8))"
-        return MockOCRItem(id: itemId, documentType: .receipt)
+        return ProcessingMockOCRItem(id: itemId, documentType: .receipt)
     }
     
-    static func createCheckItem(id: String? = nil) -> MockOCRItem {
+    static func createCheckItem(id: String? = nil) -> ProcessingMockOCRItem {
         let itemId = id ?? "check-\(UUID().uuidString.prefix(8))"
-        return MockOCRItem(id: itemId, documentType: .check)
+        return ProcessingMockOCRItem(id: itemId, documentType: .check)
     }
     
-    static func createAutoItem(id: String? = nil) -> MockOCRItem {
+    static func createAutoItem(id: String? = nil) -> ProcessingMockOCRItem {
         let itemId = id ?? "auto-\(UUID().uuidString.prefix(8))"
-        return MockOCRItem(id: itemId, documentType: .auto)
+        return ProcessingMockOCRItem(id: itemId, documentType: .auto)
     }
 }
 
 /// Manual mock implementation of OCRProcessingIO for testing
 class MockProcessingIO: OCRProcessingIO {
-    typealias Item = MockOCRItem
+    typealias Item = ProcessingMockOCRItem
     
     // Queue management
     var items: [Item] = []
