@@ -1,16 +1,15 @@
 import XCTest
 import Foundation
-import Mockingbird
 @testable import NolockOCR
 
-/// Tests for OCRProcessingService using Mockingbird framework
+/// Tests for OCRProcessingService using manual mocks instead of Mockingbird
 class OCRProcessingServiceMockingbirdTests: XCTestCase {
     
     // MARK: - Properties
     
-    var mockSession: URLSessionProtocolMock!
-    var mockIO: OCRProcessingIOMock!
-    var processingService: OCRProcessingService<OCRProcessingIOMock>!
+    var mockSession: MockURLSession!
+    var mockIO: MockProcessingIO!
+    var processingService: OCRProcessingService<MockProcessingIO>!
     
     // Mock response data
     let receiptJSON = """
@@ -46,10 +45,10 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
         super.setUp()
         
         // Set up mock URLSession
-        mockSession = mock(URLSessionProtocol.self)
+        mockSession = MockURLSession()
         
         // Set up mock IO
-        mockIO = mock(OCRProcessingIO.self)
+        mockIO = MockProcessingIO()
         
         // Set up OCRClient to use our mock session
         OCRClient.useCustomURLSession(mockSession)
@@ -58,35 +57,19 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
         let receiptData = receiptJSON.data(using: .utf8)!
         let checkData = checkJSON.data(using: .utf8)!
         
-        let receiptResponse = HTTPURLResponse(
+        let response = HTTPURLResponse(
             url: URL(string: "https://ocr-checks-worker.af-4a0.workers.dev/receipt")!,
             statusCode: 200,
             httpVersion: nil,
             headerFields: ["Content-Type": "application/json"]
         )!
         
-        let checkResponse = HTTPURLResponse(
-            url: URL(string: "https://ocr-checks-worker.af-4a0.workers.dev/check")!,
-            statusCode: 200,
-            httpVersion: nil,
-            headerFields: ["Content-Type": "application/json"]
-        )!
-        
-        // Mock data(for:) for receipt URLs
-        given(mockSession.data(for: any(), delegate: any()))
-            .will { request, _ in
-                if let url = request.url?.absoluteString {
-                    if url.contains("/receipt") {
-                        return (receiptData, receiptResponse)
-                    } else if url.contains("/check") {
-                        return (checkData, checkResponse)
-                    } else if url.contains("/process") {
-                        return (receiptData, receiptResponse) // Default to receipt for auto
-                    }
-                }
-                // Default response
-                return (receiptData, receiptResponse)
-            }
+        // Configure the mock session with response data
+        mockSession.mockResponse = response
+        mockSession.mockData = receiptData
+        mockSession.receiptResponseData = receiptData
+        mockSession.checkResponseData = checkData
+        mockSession.documentResponseData = receiptData // Default to receipt for auto
         
         // Create service
         processingService = OCRProcessingService(
@@ -108,23 +91,9 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
     
     /// Test basic processing with mocked components
     func testBasicProcessing() {
-        // ARRANGE
-        // Create test items
-        let testItem = TestItem(id: "test-item-1", documentType: .receipt)
-        
-        // Set up mock IO to return our test item then nil
-        given(mockIO.getNextItemToProcess())
-            .willReturn(testItem)
-            .willReturn(nil)
-        
-        // Track processed results
-        var processedResults: [Result<Any, Error>] = []
-        given(mockIO.itemProcessed(item: any(), result: any()))
-            .will { _, result in
-                if let typedResult = result as? Result<Any, Error> {
-                    processedResults.append(typedResult)
-                }
-            }
+        // Create test item
+        let testItem = MockOCRItem(id: "test-item-1", documentType: .receipt)
+        mockIO.items = [testItem]
         
         // Create an expectation for completed callback
         let expectation = XCTestExpectation(description: "Processing completed")
@@ -132,23 +101,20 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
             expectation.fulfill()
         }
         
-        // ACT
         // Start processing
         processingService.start()
         
         // Wait for completion
         wait(for: [expectation], timeout: 2.0)
         
-        // ASSERT
-        // Verify getNextItemToProcess was called twice (once for the item, once for nil)
-        verify(mockIO.getNextItemToProcess()).wasCalled(exactly(2))
-        
-        // Verify itemProcessed was called once
-        verify(mockIO.itemProcessed(item: any(), result: any())).wasCalled(exactly(1))
+        // Verify IO interactions
+        XCTAssertEqual(mockIO.getNextItemCallCount, 2) // Once for the item, once for nil
+        XCTAssertEqual(mockIO.itemProcessedCallCount, 1) // Called once for the processed item
+        XCTAssertEqual(mockIO.processedItems.count, 1)
         
         // Verify we got a success result
-        XCTAssertEqual(processedResults.count, 1)
-        if case .success = processedResults.first {
+        XCTAssertEqual(mockIO.processedResults.count, 1)
+        if case .success = mockIO.processedResults.first {
             // Success case as expected
         } else {
             XCTFail("Expected success result")
@@ -157,13 +123,10 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
     
     /// Test service correctly handles errors from getNextItemToProcess
     func testErrorFromGetNextItem() {
-        // ARRANGE
-        // Create test error
+        // Configure mock IO to fail on getNextItemToProcess
         let testError = NSError(domain: "TestDomain", code: 123, userInfo: [NSLocalizedDescriptionKey: "Test error"])
-        
-        // Set up mock IO to throw an error
-        given(mockIO.getNextItemToProcess())
-            .willThrow(testError)
+        mockIO.shouldFailGetNext = true
+        mockIO.customError = testError
         
         // Create an expectation for error status
         let expectation = XCTestExpectation(description: "Error status received")
@@ -176,16 +139,11 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
             }
         }
         
-        // ACT
         // Start processing
         processingService.start()
         
         // Wait for error status
         wait(for: [expectation], timeout: 2.0)
-        
-        // ASSERT
-        // Verify getNextItemToProcess was called
-        verify(mockIO.getNextItemToProcess()).wasCalled()
         
         // Verify we received the expected error
         XCTAssertNotNil(receivedError)
@@ -196,14 +154,10 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
     
     /// Test notifyWorkAvailable functionality
     func testNotifyWorkAvailable() {
-        // ARRANGE
-        // Set up mock IO to return nil initially, then an item when called again
-        let testItem = TestItem(id: "new-item", documentType: .receipt)
-        
-        given(mockIO.getNextItemToProcess())
-            .willReturn(nil)
-            .willReturn(testItem)
-            .willReturn(nil)
+        // Configure mock IO to return nil initially, then have items available later
+        mockIO.emptyQueueOnFirstCall = true
+        let newItem = MockOCRItem(id: "new-item", documentType: .receipt)
+        mockIO.setItemsToAddWhenEmpty([newItem])
         
         // Create expectations
         let initialCompletionExpectation = XCTestExpectation(description: "Initial processing completed")
@@ -222,41 +176,15 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
             self.processingService.notifyWorkAvailable()
         }
         
-        // ACT
         // Start processing with empty queue
         processingService.start()
         
         // Wait for both completions
         wait(for: [initialCompletionExpectation, secondCompletionExpectation], timeout: 3.0)
         
-        // ASSERT
-        // Verify getNextItemToProcess was called at least 3 times
-        verify(mockIO.getNextItemToProcess()).wasCalled(atLeast(3))
-        
-        // Verify itemProcessed was called once with the new item
-        verify(mockIO.itemProcessed(item: any(), result: any())).wasCalled(exactly(1))
-    }
-}
-
-// MARK: - Helper Types
-
-/// Test implementation of OCRProcessable for testing
-class TestItem: OCRProcessable, Identifiable {
-    let id: String
-    let imageData: Data
-    let documentType: DocumentType
-    var metadata: [String: Any]
-    
-    init(id: String, documentType: DocumentType = .receipt, metadata: [String: Any] = [:]) {
-        self.id = id
-        self.documentType = documentType
-        self.metadata = metadata
-        
-        // Create mock image data
-        var data = Data(capacity: 1024)
-        for i in 0..<1024 {
-            data.append(UInt8(i % 256))
-        }
-        self.imageData = data
+        // Verify interactions
+        XCTAssertGreaterThanOrEqual(mockIO.getNextItemCallCount, 3) // At least 3 calls
+        XCTAssertEqual(mockIO.processedItems.count, 1) // One item was processed
+        XCTAssertEqual(mockIO.processedItems.first?.id, "new-item") // It was our expected item
     }
 }

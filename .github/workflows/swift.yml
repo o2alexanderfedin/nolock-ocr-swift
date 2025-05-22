@@ -25,9 +25,7 @@ jobs:
     
     - name: Generate Mocks
       run: |
-        mkdir -p Tests/Mocks/Generated
-        ./.build/checkouts/mockingbird/mockingbird download
-        ./.build/checkouts/mockingbird/mockingbird generate --targets "NolockOCR" --output "Tests/Mocks/Generated"
+        ./generate-mocks.sh
     
     - name: Run tests
       run: swift test -v
