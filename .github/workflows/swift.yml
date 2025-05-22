@@ -23,9 +23,20 @@ jobs:
     - name: Build
       run: swift build -v
     
-    - name: Generate Mocks
+    - name: Setup for Tests
       run: |
-        ./generate-mocks.sh
+        # Try to generate mocks but continue even if it fails
+        echo "Attempting to generate mocks..."
+        chmod +x ./generate-mocks.sh
+        ./generate-mocks.sh || echo "Mock generation failed, will use manual mocks instead"
+        
+        # Ensure the manual mocks directory is available
+        echo "Verifying manual mocks are available..."
+        if [ -f "Tests/Mocks/MockURLSession.swift" ] && [ -f "Tests/Mocks/MockProcessingIO.swift" ]; then
+          echo "Manual mocks are available and will be used"
+        else
+          echo "WARNING: Manual mocks not found, tests may fail"
+        fi
     
     - name: Run tests
       run: swift test -v
