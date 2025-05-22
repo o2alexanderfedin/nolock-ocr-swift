@@ -7,119 +7,397 @@ class OCRProcessingServiceTests: XCTestCase {
     
     // MARK: - Test Mocks
     
-    /// Mock URLSession for testing
+    /// Enhanced Mock URLSession for testing
     class MockURLSession: URLSessionProtocol {
+        // Response configuration
         var mockData: Data?
         var mockResponse: URLResponse?
         var mockError: Error?
         
+        // Tracking properties
+        var requestsReceived: [URLRequest] = []
+        var lastRequestURL: URL?
+        var lastRequestMethod: String?
+        var asyncRequestCount = 0
+        var completionHandlerRequestCount = 0
+        
+        // Control properties
+        var delayResponse: TimeInterval = 0
+        var simulateCancellation = false
+        
+        // Document type-specific responses
+        var checkResponseData: Data?
+        var receiptResponseData: Data?
+        var documentResponseData: Data?
+        
         func data(from url: URL, delegate: URLSessionTaskDelegate?) async throws -> (Data, URLResponse) {
+            asyncRequestCount += 1
+            lastRequestURL = url
+            
+            if simulateCancellation {
+                throw NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled, userInfo: nil)
+            }
+            
+            if delayResponse > 0 {
+                try? await Task.sleep(nanoseconds: UInt64(delayResponse * 1_000_000_000))
+            }
+            
             if let error = mockError {
                 throw error
             }
+            
             guard let data = mockData, let response = mockResponse else {
                 throw NSError(domain: "MockURLSession", code: 1, userInfo: [NSLocalizedDescriptionKey: "No mock data or response"])
             }
+            
             return (data, response)
         }
         
         func data(for request: URLRequest, delegate: URLSessionTaskDelegate?) async throws -> (Data, URLResponse) {
+            asyncRequestCount += 1
+            lastRequestURL = request.url
+            lastRequestMethod = request.httpMethod
+            requestsReceived.append(request)
+            
+            if simulateCancellation {
+                throw NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled, userInfo: nil)
+            }
+            
+            if delayResponse > 0 {
+                try? await Task.sleep(nanoseconds: UInt64(delayResponse * 1_000_000_000))
+            }
+            
             if let error = mockError {
                 throw error
             }
-            guard let data = mockData, let response = mockResponse else {
+            
+            // Select response data based on URL path
+            var responseData = mockData
+            if let url = request.url?.path {
+                if url.contains("/check") {
+                    responseData = checkResponseData ?? mockData
+                } else if url.contains("/receipt") {
+                    responseData = receiptResponseData ?? mockData
+                } else if url.contains("/process") {
+                    responseData = documentResponseData ?? mockData
+                }
+            }
+            
+            guard let data = responseData, let response = mockResponse else {
                 throw NSError(domain: "MockURLSession", code: 1, userInfo: [NSLocalizedDescriptionKey: "No mock data or response"])
             }
+            
             return (data, response)
         }
         
         func dataTask(with request: URLRequest, completionHandler: @escaping (Data?, URLResponse?, Error?) -> Void) -> URLSessionDataTask {
+            completionHandlerRequestCount += 1
+            lastRequestURL = request.url
+            lastRequestMethod = request.httpMethod
+            requestsReceived.append(request)
+            
             let mockTask = MockURLSessionDataTask()
-            completionHandler(mockData, mockResponse, mockError)
+            mockTask.completionHandler = completionHandler
+            mockTask.mockSession = self
+            mockTask.mockRequest = request
+            
+            // Configure the task with our mock data
+            mockTask.mockData = mockData
+            mockTask.mockResponse = mockResponse
+            mockTask.mockError = mockError
+            mockTask.delayResponse = delayResponse
+            mockTask.simulateCancellation = simulateCancellation
+            
+            // Select response data based on URL path
+            if let url = request.url?.path {
+                if url.contains("/check") {
+                    mockTask.mockData = checkResponseData ?? mockData
+                } else if url.contains("/receipt") {
+                    mockTask.mockData = receiptResponseData ?? mockData
+                } else if url.contains("/process") {
+                    mockTask.mockData = documentResponseData ?? mockData
+                }
+            }
+            
             return mockTask
+        }
+        
+        // Reset all tracking properties
+        func reset() {
+            requestsReceived = []
+            lastRequestURL = nil
+            lastRequestMethod = nil
+            asyncRequestCount = 0
+            completionHandlerRequestCount = 0
+            simulateCancellation = false
+            delayResponse = 0
         }
     }
     
-    /// Mock URLSessionDataTask for testing
+    /// Enhanced Mock URLSessionDataTask for testing
     class MockURLSessionDataTask: URLSessionDataTask, @unchecked Sendable {
+        // Configuration
+        var mockData: Data?
+        var mockResponse: URLResponse?
+        var mockError: Error?
+        var delayResponse: TimeInterval = 0
+        var simulateCancellation = false
+        
+        // Request tracking
+        var mockRequest: URLRequest?
+        weak var mockSession: MockURLSession?
+        var completionHandler: ((Data?, URLResponse?, Error?) -> Void)?
+        var isCancelled = false
+        var isResumed = false
+        
         override func resume() {
-            // Do nothing in the mock
+            isResumed = true
+            
+            guard let completionHandler = completionHandler else { return }
+            
+            // Simulate async execution
+            DispatchQueue.global().asyncAfter(deadline: .now() + delayResponse) { [weak self] in
+                guard let self = self else { return }
+                
+                // If cancelled, don't call completion handler with data
+                if self.isCancelled || self.simulateCancellation {
+                    let cancelError = NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled, userInfo: nil)
+                    completionHandler(nil, nil, cancelError)
+                    return
+                }
+                
+                completionHandler(self.mockData, self.mockResponse, self.mockError)
+            }
         }
         
         override func cancel() {
-            // Do nothing in the mock
+            isCancelled = true
+            // In a real implementation, the completion handler would be called with a cancellation error
+            if let completionHandler = completionHandler {
+                let cancelError = NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled, userInfo: nil)
+                completionHandler(nil, nil, cancelError)
+            }
         }
     }
     
-    /// Mock implementation of OCRProcessable for testing
+    /// Enhanced Mock implementation of OCRProcessable for testing
     class MockOCRItem: OCRProcessable, Identifiable {
         let id: String
         let imageData: Data
         let documentType: DocumentType
         var metadata: [String: Any]
+        var size: Int = 0  // To track "size" of item for performance testing
+        var processingTime: TimeInterval = 0  // To track processing time
+        
+        /// Default mock image data generator to avoid empty data
+        static func createMockImageData(size: Int = 1024) -> Data {
+            var data = Data(capacity: size)
+            for i in 0..<size {
+                data.append(UInt8(i % 256))
+            }
+            return data
+        }
+        
+        /// Create a random receipt item
+        static func createReceiptItem(id: String? = nil) -> MockOCRItem {
+            let itemId = id ?? "receipt-\(UUID().uuidString.prefix(8))"
+            return MockOCRItem(
+                id: itemId,
+                imageData: createMockImageData(),
+                documentType: .receipt,
+                metadata: ["type": "receipt", "test": true]
+            )
+        }
+        
+        /// Create a random check item
+        static func createCheckItem(id: String? = nil) -> MockOCRItem {
+            let itemId = id ?? "check-\(UUID().uuidString.prefix(8))"
+            return MockOCRItem(
+                id: itemId,
+                imageData: createMockImageData(),
+                documentType: .check,
+                metadata: ["type": "check", "test": true]
+            )
+        }
+        
+        /// Create a random auto-detect item
+        static func createAutoItem(id: String? = nil) -> MockOCRItem {
+            let itemId = id ?? "auto-\(UUID().uuidString.prefix(8))"
+            return MockOCRItem(
+                id: itemId,
+                imageData: createMockImageData(),
+                documentType: .auto,
+                metadata: ["type": "auto", "test": true]
+            )
+        }
+        
+        /// Create a batch of mixed items
+        static func createMixedBatch(count: Int) -> [MockOCRItem] {
+            var items: [MockOCRItem] = []
+            for i in 0..<count {
+                let type = i % 3
+                switch type {
+                case 0:
+                    items.append(createReceiptItem(id: "batch-receipt-\(i)"))
+                case 1:
+                    items.append(createCheckItem(id: "batch-check-\(i)"))
+                default:
+                    items.append(createAutoItem(id: "batch-auto-\(i)"))
+                }
+            }
+            return items
+        }
         
         init(id: String, 
              imageData: Data = Data(), 
              documentType: DocumentType = .receipt,
-             metadata: [String: Any] = [:]) {
+             metadata: [String: Any] = [:],
+             size: Int = 0) {
             self.id = id
-            self.imageData = imageData
+            self.imageData = imageData.isEmpty ? Self.createMockImageData() : imageData
             self.documentType = documentType
             self.metadata = metadata
+            self.size = size > 0 ? size : self.imageData.count
+        }
+        
+        // For debugging and test output
+        var description: String {
+            return "Item \(id) (type: \(documentType), size: \(size) bytes)"
         }
     }
     
-    /// Mock implementation of OCRProcessingIO for testing
+    /// Enhanced Mock implementation of OCRProcessingIO for testing
     class MockIO: OCRProcessingIO {
         typealias Item = MockOCRItem
         
+        // Queue management
         var items: [Item]
         var processedItems: [Item] = []
+        var processedResults: [Result<Any, Error>] = []
+        
+        // Operation control
         var shouldFailOnGetNext = false
         var shouldFailOnProcessed = false
         var processingDelay: TimeInterval = 0
+        var emptyQueueOnFirstCall = false
+        var returnNilAfterNItems = -1  // Negative means never return nil
+        var customError: Error?
         
+        // Call tracking
+        var getNextItemCallCount = 0
+        var itemProcessedCallCount = 0
+        var lastProcessedResult: Result<Any, Error>?
+        
+        // Callbacks
         var onItemProcessed: ((Item, Result<Any, Error>) -> Void)?
+        var onGetNextItem: (() -> Void)?
+        
+        // Advanced control
+        var dynamicallyAddItems = false
+        var itemsToAddWhenEmpty: [Item] = []
+        var simulateRaceCondition = false
         
         init(items: [Item] = [], 
              shouldFailOnGetNext: Bool = false,
-             shouldFailOnProcessed: Bool = false) {
+             shouldFailOnProcessed: Bool = false,
+             processingDelay: TimeInterval = 0) {
             self.items = items
             self.shouldFailOnGetNext = shouldFailOnGetNext
             self.shouldFailOnProcessed = shouldFailOnProcessed
+            self.processingDelay = processingDelay
         }
         
         func getNextItemToProcess() async throws -> Item? {
+            getNextItemCallCount += 1
+            onGetNextItem?()
+            
             if shouldFailOnGetNext {
-                throw NSError(domain: "MockIO", code: 1, userInfo: [NSLocalizedDescriptionKey: "Simulated IO failure"])
+                if let customError = customError {
+                    throw customError
+                } else {
+                    throw NSError(domain: "MockIO", code: 1, userInfo: [NSLocalizedDescriptionKey: "Simulated IO failure"])
+                }
             }
             
             if processingDelay > 0 {
                 try? await Task.sleep(nanoseconds: UInt64(processingDelay * 1_000_000_000))
+            }
+            
+            // Special behavior for the first call
+            if emptyQueueOnFirstCall && getNextItemCallCount == 1 {
+                return nil
+            }
+            
+            // Return nil after processing N items
+            if returnNilAfterNItems >= 0 && getNextItemCallCount > returnNilAfterNItems {
+                return nil
             }
             
             // Synchronize access to items array
             return await MainActor.run {
-                return items.isEmpty ? nil : items.removeFirst()
+                if items.isEmpty {
+                    if dynamicallyAddItems && !itemsToAddWhenEmpty.isEmpty {
+                        items = itemsToAddWhenEmpty
+                        itemsToAddWhenEmpty = []
+                        return items.removeFirst()
+                    }
+                    return nil
+                }
+                
+                return items.removeFirst()
             }
         }
         
         func itemProcessed(item: Item, result: Result<Any, Error>) async throws {
+            itemProcessedCallCount += 1
+            lastProcessedResult = result
+            
             if shouldFailOnProcessed {
-                throw NSError(domain: "MockIO", code: 2, userInfo: [NSLocalizedDescriptionKey: "Simulated IO processing failure"])
+                if let customError = customError {
+                    throw customError
+                } else {
+                    throw NSError(domain: "MockIO", code: 2, userInfo: [NSLocalizedDescriptionKey: "Simulated IO processing failure"])
+                }
             }
             
             if processingDelay > 0 {
                 try? await Task.sleep(nanoseconds: UInt64(processingDelay * 1_000_000_000))
             }
             
-            // The item is already mutable from the service now
-            let processedItem = item
-            
-            await MainActor.run {
-                processedItems.append(processedItem)
-                onItemProcessed?(processedItem, result)
+            if simulateRaceCondition {
+                // Add an item to simulate new work becoming available
+                let newItem = MockOCRItem(id: "race-condition-\(UUID().uuidString.prefix(8))")
+                await MainActor.run {
+                    items.append(newItem)
+                }
             }
+            
+            // Store processed item and result
+            await MainActor.run {
+                processedItems.append(item)
+                processedResults.append(result)
+                onItemProcessed?(item, result)
+            }
+        }
+        
+        // Helper to add items to the queue
+        func addItems(_ newItems: [Item]) {
+            items.append(contentsOf: newItems)
+        }
+        
+        // Helper to add items that will be returned when the queue is empty
+        func setItemsToAddWhenEmpty(_ newItems: [Item]) {
+            itemsToAddWhenEmpty = newItems
+            dynamicallyAddItems = true
+        }
+        
+        // Reset tracking state
+        func reset() {
+            processedItems = []
+            processedResults = []
+            getNextItemCallCount = 0
+            itemProcessedCallCount = 0
+            lastProcessedResult = nil
         }
     }
     
@@ -129,62 +407,170 @@ class OCRProcessingServiceTests: XCTestCase {
     var mockIO: MockIO!
     var processingService: OCRProcessingService<MockIO>!
     
+    // Static test data
+    static let mockReceiptResponseJSON = """
+    {
+        "data": {
+            "merchant": {
+                "name": "Test Store",
+                "address": "123 Test St",
+                "phone": "555-123-4567"
+            },
+            "receiptNumber": "R12345",
+            "timestamp": "2025-05-21T14:30:45Z",
+            "totals": {
+                "subtotal": 10.99,
+                "tax": 1.00,
+                "total": 11.99
+            },
+            "currency": "USD",
+            "items": [
+                {
+                    "description": "Test Item 1",
+                    "quantity": 1,
+                    "unitPrice": 5.99,
+                    "totalPrice": 5.99
+                },
+                {
+                    "description": "Test Item 2",
+                    "quantity": 2,
+                    "unitPrice": 2.50,
+                    "totalPrice": 5.00
+                }
+            ]
+        },
+        "confidence": {
+            "ocr": 0.95,
+            "extraction": 0.9,
+            "overall": 0.92
+        }
+    }
+    """
+    
+    static let mockCheckResponseJSON = """
+    {
+        "data": {
+            "checkNumber": "12345",
+            "date": "2025-05-21T14:30:45Z",
+            "payee": "John Smith",
+            "payer": "Test Company",
+            "amount": 123.45,
+            "amountText": "One hundred twenty-three and 45/100 dollars",
+            "memo": "Test payment",
+            "bankName": "Test Bank",
+            "routingNumber": "123456789",
+            "accountNumber": "987654321",
+            "signature": true,
+            "confidence": 0.95
+        },
+        "confidence": {
+            "ocr": 0.97,
+            "extraction": 0.93,
+            "overall": 0.95
+        }
+    }
+    """
+    
+    static let mockDocumentResponseJSON = """
+    {
+        "documentType": "receipt",
+        "data": {
+            "merchant": {
+                "name": "Auto-Detected Store",
+                "address": "456 Auto St",
+                "phone": "555-987-6543"
+            },
+            "receiptNumber": "A98765",
+            "timestamp": "2025-05-21T15:45:30Z",
+            "totals": {
+                "subtotal": 25.50,
+                "tax": 2.55,
+                "total": 28.05
+            },
+            "currency": "USD",
+            "items": [
+                {
+                    "description": "Auto Item 1",
+                    "quantity": 3,
+                    "unitPrice": 8.50,
+                    "totalPrice": 25.50
+                }
+            ]
+        },
+        "confidence": {
+            "ocr": 0.88,
+            "extraction": 0.85,
+            "overall": 0.87
+        }
+    }
+    """
+    
+    static let mockErrorResponseJSON = """
+    {
+        "error": "Invalid image format or corrupted image data"
+    }
+    """
+    
     // MARK: - Test Lifecycle
     
     override func setUp() {
         super.setUp()
         mockSession = MockURLSession()
         
-        // Create a mock success response
-        let successResponse = HTTPURLResponse(
+        // Create mock HTTP responses for different endpoints
+        // Create mock HTTP response for all endpoints
+        let mockResponse = HTTPURLResponse(
             url: URL(string: "https://ocr-checks-worker.af-4a0.workers.dev/receipt")!,
             statusCode: 200,
             httpVersion: nil,
             headerFields: ["Content-Type": "application/json"]
         )!
         
-        // Create mock response data
-        let receiptData = """
-        {
-            "data": {
-                "merchant": {
-                    "name": "Test Store",
-                    "address": "123 Test St"
-                },
-                "totals": {
-                    "subtotal": 10.99,
-                    "tax": 1.00,
-                    "total": 11.99
-                },
-                "currency": "USD",
-                "items": []
-            },
-            "confidence": {
-                "ocr": 0.95,
-                "extraction": 0.9,
-                "overall": 0.92
-            }
-        }
-        """.data(using: .utf8)!
-        
-        mockSession.mockResponse = successResponse
-        mockSession.mockData = receiptData
+        // Set up the mock session with the responses
+        mockSession.mockResponse = mockResponse
+        mockSession.mockData = Self.mockReceiptResponseJSON.data(using: .utf8)!
+        mockSession.checkResponseData = Self.mockCheckResponseJSON.data(using: .utf8)!
+        mockSession.receiptResponseData = Self.mockReceiptResponseJSON.data(using: .utf8)!
+        mockSession.documentResponseData = Self.mockDocumentResponseJSON.data(using: .utf8)!
         
         // Create mock IO with test items
-        let testItems = [
-            MockOCRItem(id: "test-1"),
-            MockOCRItem(id: "test-2"),
-            MockOCRItem(id: "test-3")
-        ]
-        
-        mockIO = MockIO(items: testItems)
+        mockIO = MockIO()
     }
     
     override func tearDown() {
+        // Cancel processing to ensure timers are invalidated
+        processingService?.cancel()
+        
+        // Clear references
         mockSession = nil
         mockIO = nil
         processingService = nil
         super.tearDown()
+    }
+    
+    // MARK: - Helper Methods
+    
+    /// Create a processing service with the specified parameters
+    private func createService(
+        items: [MockOCRItem] = [],
+        environment: ClientEnvironment = .production,
+        processingInterval: TimeInterval = 0.1
+    ) -> OCRProcessingService<MockIO> {
+        // Reset the mockIO and add the items
+        mockIO.reset()
+        mockIO.items = items
+        
+        // Create the service
+        return OCRProcessingService(
+            io: mockIO,
+            environment: environment,
+            processingInterval: processingInterval
+        )
+    }
+    
+    /// Helper to wait for async operations in tests
+    private func waitForProcessing(timeout: TimeInterval = 1.0) async {
+        try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
     }
     
     // MARK: - Tests
@@ -354,5 +740,243 @@ class OCRProcessingServiceTests: XCTestCase {
         
         // This is a pass-through test to verify the code structure
         XCTAssertTrue(true)
+    }
+    
+    /// Test different document types are processed correctly
+    func testDocumentTypeProcessing() {
+        // Set up client session with our mock
+        OCRClient.useCustomURLSession(mockSession)
+        
+        // Create test items for each document type
+        let receiptItem = MockOCRItem.createReceiptItem(id: "test-receipt")
+        let checkItem = MockOCRItem.createCheckItem(id: "test-check")
+        let autoItem = MockOCRItem.createAutoItem(id: "test-auto")
+        
+        // Initialize IO with these items
+        mockIO = MockIO(items: [receiptItem, checkItem, autoItem])
+        
+        // Create service with a fast interval
+        processingService = OCRProcessingService(
+            io: mockIO,
+            environment: .production,
+            processingInterval: 0.1
+        )
+        
+        // Create expectations
+        let expectation = XCTestExpectation(description: "Processing completed")
+        
+        // Set callbacks
+        processingService.onCompleted = {
+            expectation.fulfill()
+        }
+        
+        // Start processing
+        processingService.start()
+        
+        // Wait for expectations
+        wait(for: [expectation], timeout: 3.0)
+        
+        // Verify all items were processed
+        XCTAssertEqual(mockIO.processedItems.count, 3)
+        
+        // Check the URL paths used for each request
+        for (index, request) in mockSession.requestsReceived.enumerated() {
+            if let path = request.url?.path {
+                switch index {
+                case 0: // First item (receipt)
+                    XCTAssertTrue(path.contains("/receipt"), "First request should be to receipt endpoint")
+                case 1: // Second item (check)
+                    XCTAssertTrue(path.contains("/check"), "Second request should be to check endpoint")
+                case 2: // Third item (auto)
+                    XCTAssertTrue(path.contains("/process"), "Third request should be to process endpoint")
+                default:
+                    XCTFail("Unexpected number of requests")
+                }
+            } else {
+                XCTFail("Request URL path should not be nil")
+            }
+        }
+    }
+    
+    /// Test notifyWorkAvailable functionality
+    func testNotifyWorkAvailable() {
+        // Create service with empty IO
+        let emptyIO = MockIO(items: [])
+        processingService = OCRProcessingService(
+            io: emptyIO,
+            environment: .production,
+            processingInterval: 0.1
+        )
+        
+        // Create initial expectations
+        let initialCompletionExpectation = XCTestExpectation(description: "Initial processing completed")
+        
+        // Set callbacks
+        processingService.onCompleted = {
+            initialCompletionExpectation.fulfill()
+        }
+        
+        // Start processing with empty queue
+        processingService.start()
+        
+        // Wait for initial completion
+        wait(for: [initialCompletionExpectation], timeout: 1.0)
+        
+        // Now notify work is available and add items
+        let newItem = MockOCRItem(id: "new-item")
+        emptyIO.items = [newItem]
+        
+        // Create second completion expectation
+        let secondCompletionExpectation = XCTestExpectation(description: "Second processing completed")
+        
+        // Set new completion handler
+        processingService.onCompleted = {
+            secondCompletionExpectation.fulfill()
+        }
+        
+        // Notify that work is available
+        processingService.notifyWorkAvailable()
+        
+        // Wait for second completion
+        wait(for: [secondCompletionExpectation], timeout: 1.0)
+        
+        // Verify the item was processed
+        XCTAssertEqual(emptyIO.processedItems.count, 1)
+    }
+    
+    /// Test handling of pending work counter
+    func testPendingWorkCounter() {
+        // Set up client session
+        OCRClient.useCustomURLSession(mockSession)
+        
+        // Create items
+        let initialItem = MockOCRItem(id: "initial-item")
+        
+        // Setup IO with dynamic item addition
+        mockIO = MockIO(items: [initialItem])
+        mockIO.dynamicallyAddItems = true
+        
+        // Create service with a longer interval to control timing
+        processingService = OCRProcessingService(
+            io: mockIO,
+            environment: .production,
+            processingInterval: 0.5
+        )
+        
+        // Create expectations
+        let initialCompletionExpectation = XCTestExpectation(description: "Initial processing completed")
+        
+        // Track status changes
+        var statusChanges: [OCRProcessingService<MockIO>.ProcessingStatus] = []
+        processingService.statusHandler = { status in
+            statusChanges.append(status)
+            
+            // When we see completion, fulfill the expectation
+            if case .completed = status {
+                initialCompletionExpectation.fulfill()
+            }
+        }
+        
+        // Start processing
+        processingService.start()
+        
+        // Wait a bit then notify about more work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            // Notify about more work while processing is happening
+            self.processingService.notifyWorkAvailable()
+            
+            // Add items that will be fetched when queue is empty
+            let newItems = [
+                MockOCRItem(id: "pending-1"),
+                MockOCRItem(id: "pending-2")
+            ]
+            self.mockIO.setItemsToAddWhenEmpty(newItems)
+        }
+        
+        // Wait for initial completion
+        wait(for: [initialCompletionExpectation], timeout: 2.0)
+        
+        // Create expectation for the second batch
+        let secondCompletionExpectation = XCTestExpectation(description: "Second batch processing completed")
+        
+        // Update completion handler
+        processingService.onCompleted = {
+            secondCompletionExpectation.fulfill()
+        }
+        
+        // Wait for second completion
+        wait(for: [secondCompletionExpectation], timeout: 2.0)
+        
+        // Verify all items were processed
+        XCTAssertEqual(mockIO.processedItems.count, 3)
+        
+        // Verify we saw appropriate status changes (processing counts should reflect pending work)
+        var sawPendingWorkInStatus = false
+        for status in statusChanges {
+            if case let .processing(_, total) = status {
+                if total > 1 {
+                    sawPendingWorkInStatus = true
+                    break
+                }
+            }
+        }
+        
+        XCTAssertTrue(sawPendingWorkInStatus, "Status should have reflected pending work")
+    }
+    
+    /// Test processing items with mock HTTP responses
+    func testProcessingWithMockResponses() {
+        // Set up client session with our mock
+        OCRClient.useCustomURLSession(mockSession)
+        
+        // Create test items
+        let receiptItem = MockOCRItem.createReceiptItem(id: "test-receipt")
+        let checkItem = MockOCRItem.createCheckItem(id: "test-check") 
+        
+        // Initialize IO with these items
+        mockIO = MockIO(items: [receiptItem, checkItem])
+        
+        // Store processed results
+        var processedResults: [Result<Any, Error>] = []
+        mockIO.onItemProcessed = { _, result in
+            processedResults.append(result)
+        }
+        
+        // Create service with a fast interval
+        processingService = OCRProcessingService(
+            io: mockIO,
+            environment: .production,
+            processingInterval: 0.1
+        )
+        
+        // Create expectations
+        let expectation = XCTestExpectation(description: "Processing completed")
+        
+        // Set callbacks
+        processingService.onCompleted = {
+            expectation.fulfill()
+        }
+        
+        // Start processing
+        processingService.start()
+        
+        // Wait for expectations
+        wait(for: [expectation], timeout: 2.0)
+        
+        // Verify all items were processed
+        XCTAssertEqual(mockIO.processedItems.count, 2)
+        
+        // Verify we got success results
+        XCTAssertEqual(processedResults.count, 2)
+        
+        for result in processedResults {
+            switch result {
+            case .success:
+                // This is what we expect
+                break
+            case .failure(let error):
+                XCTFail("Expected success but got error: \(error)")
+            }
+        }
     }
 }
