@@ -37,7 +37,8 @@ let package = Package(
             path: "Examples",
             exclude: [
                 "AsyncCheckProcessingExample.swift",
-                "CheckProcessingExample.swift"
+                "CheckProcessingExample.swift",
+                "BatchProcessingExample.swift"
             ],
             sources: ["Main.swift"]),
         .testTarget(
