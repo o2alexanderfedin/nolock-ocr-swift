@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.15.0] - 2025-05-28
+
+### Added
+- Expanded OCRProcessingService test coverage with comprehensive test scenarios:
+  - Added tests for large batch processing with performance metrics
+  - Improved test stability with more robust mock implementations
+  - Added tests for mixed document type batches
+  - Added detailed assertions for all test cases
+
+### Fixed
+- Resolved CI/CD integration issues:
+  - Added compatibility with GitHub Actions workflow
+  - Fixed SwiftLint configuration for better test compatibility
+  - Improved mock generation strategy for CI environments
+  - Enhanced Mockingbird integration with fallback mechanisms
+
 ## [1.14.0] - 2025-05-27
 
 ### Added
