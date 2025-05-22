@@ -60,7 +60,116 @@ struct OCRExampleRunner {
         printHeader("Error Handling", symbol: "⚠️")
         exampleErrorHandlingCode()
         
+        // Batch processing examples using OCRProcessingService
+        printHeader("Batch Processing", symbol: "🔄")
+        exampleBatchProcessingCode()
+        
         printHeader("Examples Completed Successfully", symbol: "✅")
+    }
+    
+    // MARK: - Batch Processing Examples
+    
+    static func exampleBatchProcessingCode() {
+        print("""
+        // Example code for batch processing using OCRProcessingService
+        
+        // 1. Create a custom class that implements OCRProcessingIO
+        class BatchProcessor: OCRProcessingIO {
+            typealias Item = OCRStorageItem
+            
+            // Queue of items to process
+            private var itemQueue: [OCRStorageItem] = []
+            
+            // Processed results
+            private var processedResults: [String: Result<Any, Error>] = [:]
+            
+            // Get the next item to process - required by OCRProcessingIO
+            func getNextItemToProcess() async throws -> OCRStorageItem? {
+                // Return nil if queue is empty
+                if itemQueue.isEmpty {
+                    return nil
+                }
+                
+                // Return and remove the first item
+                return itemQueue.removeFirst()
+            }
+            
+            // Process completed item - required by OCRProcessingIO
+            func itemProcessed(item: OCRStorageItem, result: Result<Any, Error>) async throws {
+                // Store result with item ID as key
+                processedResults[item.id] = result
+                
+                // Handle success or failure as needed
+                switch result {
+                case .success(let data):
+                    print("Successfully processed item \\(item.id)")
+                case .failure(let error):
+                    print("Failed to process item \\(item.id): \\(error)")
+                }
+            }
+            
+            // Add items to the queue
+            func addItems(_ items: [OCRStorageItem]) {
+                itemQueue.append(contentsOf: items)
+            }
+        }
+        
+        // 2. Create an instance of your processor
+        let batchProcessor = BatchProcessor()
+        
+        // 3. Add some items to process
+        let sampleData = Data(repeating: 0, count: 1024) // Sample image data
+        let items = [
+            OCRStorageItem(id: "receipt-1", imageData: sampleData, documentType: .receipt),
+            OCRStorageItem(id: "check-1", imageData: sampleData, documentType: .check),
+            OCRStorageItem(id: "receipt-2", imageData: sampleData, documentType: .receipt)
+        ]
+        batchProcessor.addItems(items)
+        
+        // 4. Create and configure the processing service
+        let processingService = OCRProcessingService(
+            io: batchProcessor,
+            environment: .production,
+            processingInterval: 1.0 // Process one item per second
+        )
+        
+        // 5. Set up status handler
+        processingService.statusHandler = { status in
+            switch status {
+            case .idle:
+                print("Service is idle")
+            case .processing(let completed, let total):
+                print("Processing \\(completed)/\\(total)")
+            case .completed:
+                print("Processing completed")
+            case .cancelled:
+                print("Processing cancelled")
+            case .error(let error):
+                print("Processing error: \\(error)")
+            }
+        }
+        
+        // 6. Set up completion handler
+        processingService.onCompleted = {
+            print("Batch processing completed")
+        }
+        
+        // 7. Start processing
+        processingService.start()
+        
+        // 8. Later, add more items and notify the service
+        // Add new items to the queue
+        let newItems = [
+            OCRStorageItem(id: "new-item-1", imageData: sampleData, documentType: .receipt)
+        ]
+        batchProcessor.addItems(newItems)
+        
+        // Notify service that new work is available
+        processingService.notifyWorkAvailable()
+        
+        // 9. Cancel processing if needed
+        processingService.cancel()
+        """)
     }
     
     // MARK: - Client Creation Examples
