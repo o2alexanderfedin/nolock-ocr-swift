@@ -8,7 +8,7 @@ class OCRProcessingServiceTests: XCTestCase {
     // MARK: - Test Mocks
     
     /// Enhanced Mock URLSession for testing
-    class MockURLSession: URLSessionProtocol {
+    class TestMockURLSession: URLSessionProtocol {
         // Response configuration
         var mockData: Data?
         var mockResponse: URLResponse?
@@ -96,7 +96,7 @@ class OCRProcessingServiceTests: XCTestCase {
             lastRequestMethod = request.httpMethod
             requestsReceived.append(request)
             
-            let mockTask = MockURLSessionDataTask()
+            let mockTask = TestMockURLSessionDataTask()
             mockTask.completionHandler = completionHandler
             mockTask.mockSession = self
             mockTask.mockRequest = request
@@ -135,7 +135,7 @@ class OCRProcessingServiceTests: XCTestCase {
     }
     
     /// Enhanced Mock URLSessionDataTask for testing
-    class MockURLSessionDataTask: URLSessionDataTask, @unchecked Sendable {
+    class TestMockURLSessionDataTask: URLSessionDataTask, @unchecked Sendable {
         // Configuration
         var mockData: Data?
         var mockResponse: URLResponse?
@@ -145,7 +145,7 @@ class OCRProcessingServiceTests: XCTestCase {
         
         // Request tracking
         var mockRequest: URLRequest?
-        weak var mockSession: MockURLSession?
+        weak var mockSession: TestMockURLSession?
         var completionHandler: ((Data?, URLResponse?, Error?) -> Void)?
         var isCancelled = false
         var isResumed = false
@@ -403,7 +403,7 @@ class OCRProcessingServiceTests: XCTestCase {
     
     // MARK: - Test Properties
     
-    var mockSession: MockURLSession!
+    var mockSession: TestMockURLSession!
     var mockIO: MockIO!
     var processingService: OCRProcessingService<MockIO>!
     
@@ -527,7 +527,7 @@ class OCRProcessingServiceTests: XCTestCase {
     
     override func setUp() {
         super.setUp()
-        mockSession = MockURLSession()
+        mockSession = TestMockURLSession()
         
         // Create mock HTTP responses for different endpoints
         // Create mock HTTP response for all endpoints

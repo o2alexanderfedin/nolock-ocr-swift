@@ -90,7 +90,7 @@ class SharedMockURLSession: URLSessionProtocol {
         lastRequestMethod = request.httpMethod
         requestsReceived.append(request)
         
-        let mockTask = MockURLSessionDataTask()
+        let mockTask = SharedMockURLSessionDataTask()
         mockTask.completionHandler = completionHandler
         mockTask.mockSession = self
         mockTask.mockRequest = request
@@ -129,7 +129,7 @@ class SharedMockURLSession: URLSessionProtocol {
 }
 
 /// Mock URLSessionDataTask for testing
-class MockURLSessionDataTask: URLSessionDataTask, @unchecked Sendable {
+class SharedMockURLSessionDataTask: URLSessionDataTask, @unchecked Sendable {
     // Configuration
     var mockData: Data?
     var mockResponse: URLResponse?
