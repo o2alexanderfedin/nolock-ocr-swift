@@ -141,7 +141,7 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
         
         // Configure mock session with test data
         mockSession.mockResponse = mockResponse
-        mockSession.mockData = Self.mockReceiptResponseJSON.data(using: .utf8)!
+        mockSession.mockData = OCRProcessingServiceMockingbirdTests.mockReceiptResponseJSON.data(using: .utf8)!
     }
     
     override func tearDown() {
