@@ -5,32 +5,47 @@ import Foundation
 // IMPORTANT: This test file uses manual mocks in Tests/Mocks directory.
 // For simplicity, we're not using Mockingbird-generated mocks to ensure CI/CD compatibility.
 
-/// OCRProcessingService tests using Mockingbird for mocking
+/// OCRProcessingService tests using manual mocks
 class OCRProcessingServiceMockingbirdTests: XCTestCase {
     
     // MARK: - Test Properties
     
-    // The following type definitions will be available after running generate-mocks.sh
-    // For now, we'll use URLSessionProtocol and a custom protocol for the IO
-    var mockSession: URLSessionProtocol!
-    var mockIO: MockProcessingIO!
-    var processingService: OCRProcessingService<MockProcessingIO>!
+    // Using the same mock classes from OCRProcessingServiceTests
+    var mockSession: MockURLSession!
+    var mockIO: MockIO!
+    var processingService: OCRProcessingService<MockIO>!
     
-    // Protocol for our mock IO implementation
-    protocol MockProcessingIOProtocol: OCRProcessingIO where Item == MockOCRItem {}
+    // Mock OCR item class
+    class MockOCRItem: OCRProcessable, Identifiable {
+        let id: String
+        let imageData: Data
+        let documentType: DocumentType
+        var metadata: [String: Any]
+        
+        init(id: String, 
+             imageData: Data = Data(repeating: 0, count: 1024), 
+             documentType: DocumentType = .receipt,
+             metadata: [String: Any] = [:]) {
+            self.id = id
+            self.imageData = imageData
+            self.documentType = documentType
+            self.metadata = metadata
+        }
+    }
     
-    // Mock implementation conforming to our protocol
-    class MockProcessingIO: MockProcessingIOProtocol {
+    // Mock IO class
+    class MockIO: OCRProcessingIO {
         typealias Item = MockOCRItem
         
         var getNextItemToProcessWasCalled = false
         var itemProcessedWasCalled = false
         var itemToReturn: MockOCRItem?
         var capturedResults: [Result<Any, Error>] = []
+        var items: [MockOCRItem] = []
         
         func getNextItemToProcess() async throws -> MockOCRItem? {
             getNextItemToProcessWasCalled = true
-            return itemToReturn
+            return items.isEmpty ? nil : items.removeFirst()
         }
         
         func itemProcessed(item: MockOCRItem, result: Result<Any, Error>) async throws {
@@ -148,10 +163,22 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
         
         // Initialize mock components manually
         mockSession = MockURLSession()
-        mockIO = MockProcessingIO()
+        mockIO = MockIO()
         
         // Set up OCRClient to use our mock session
         OCRClient.useCustomURLSession(mockSession)
+        
+        // Set up mock HTTP response
+        let mockResponse = HTTPURLResponse(
+            url: URL(string: "https://ocr-checks-worker.af-4a0.workers.dev/receipt")!,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )!
+        
+        // Configure mock session with test data
+        mockSession.mockResponse = mockResponse
+        mockSession.mockData = mockReceiptResponseJSON.data(using: .utf8)!
     }
     
     override func tearDown() {
@@ -204,23 +231,5 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
         
         // Verify getNextItemToProcess was called
         XCTAssertTrue(mockIO.getNextItemToProcessWasCalled, "getNextItemToProcess should be called")
-    }
-}
-
-/// Mock implementation of OCRProcessable for testing
-class MockOCRItem: OCRProcessable, Identifiable {
-    let id: String
-    let imageData: Data
-    let documentType: DocumentType
-    var metadata: [String: Any]
-    
-    init(id: String, 
-         imageData: Data = Data(repeating: 0, count: 1024), 
-         documentType: DocumentType = .receipt,
-         metadata: [String: Any] = [:]) {
-        self.id = id
-        self.imageData = imageData
-        self.documentType = documentType
-        self.metadata = metadata
     }
 }
