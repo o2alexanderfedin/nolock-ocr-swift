@@ -7,16 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.11.0] - 2025-05-21
+### Added
+- Enhanced test coverage for OCRProcessingService with new scenarios:
+  - Added test for handling malformed JSON responses
+  - Added test for concurrent batch processing with multiple notifications
+  - Added test for cancellation during startup phase
+  - Improved test documentation and assertions
+
+## [1.13.0] - 2025-05-25
+
+### Added
+- Added GitHub Actions CI/CD workflow for automated build, test, and release
+- Added SwiftLint configuration for code quality checks
+- Added SwiftDoc configuration for API documentation generation
+- Updated CONTRIBUTING.md with CI/CD information and improved guidelines
+
+## [1.12.0] - 2025-05-25
+
+### Added
+- Integrated Mockingbird framework for improved test mocking
+- Added example test implementations using Mockingbird
+- Added mock generation script and configuration
+- Added comprehensive OCRProcessingService documentation and examples
+- Added BatchProcessingExample.swift showing complete implementation
+- Added batch-processing-guide.md with detailed usage instructions
+
+## [1.11.0] - 2025-05-24
 
 ### Added
 - Improved test coverage for OCRProcessingService
+- Added helper methods to OCRClient for test session injection
+- Added tests for document-type specific processing paths
+- Added tests for notifyWorkAvailable functionality
+- Added tests for pendingWorkCounter behavior
 - Added tests for network error handling (timeouts, server errors)
 - Added tests for multiple notifyWorkAvailable calls
 - Added tests for race condition handling
 - Added tests for processing errors
 - Added tests for mixed document types batch
 - Added performance test for large batches
+- Improved testability of OCRProcessingService by supporting test session injection
 
 ## [1.10.0] - 2025-05-22
 
