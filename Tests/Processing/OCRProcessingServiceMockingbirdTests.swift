@@ -10,10 +10,10 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
     
     // MARK: - Test Properties
     
-    // Using shared mock classes from the Mocks directory
-    var mockSession: MockURLSession!
-    var mockIO: MockProcessingIO!
-    var processingService: OCRProcessingService<MockProcessingIO>!
+    // Using shared mock classes from the Mocks directory with prefix to avoid ambiguity
+    var mockSession: Tests.Mocks.MockURLSession!
+    var mockIO: Tests.Mocks.MockProcessingIO!
+    var processingService: OCRProcessingService<Tests.Mocks.MockProcessingIO>!
     
     // Using MockOCRItem and MockProcessingIO from the Mocks directory
     
@@ -125,8 +125,8 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
         super.setUp()
         
         // Initialize mock components manually
-        mockSession = MockURLSession()
-        mockIO = MockProcessingIO()
+        mockSession = Tests.Mocks.MockURLSession()
+        mockIO = Tests.Mocks.MockProcessingIO()
         
         // Set up OCRClient to use our mock session
         OCRClient.useCustomURLSession(mockSession)
