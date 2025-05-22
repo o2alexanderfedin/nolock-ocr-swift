@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.0] - 2025-05-27
+
+### Added
+- Enhanced test coverage for OCRProcessingService with new scenarios:
+  - Added test for handling malformed JSON responses
+  - Added test for concurrent batch processing with multiple notifications
+  - Added test for cancellation during startup phase
+  - Improved test documentation and assertions
+- Replaced Mockingbird with manual mocks for better CI/CD compatibility:
+  - Added MockURLSession for network testing
+  - Added MockProcessingIO for processing service testing
+  - Added comprehensive documentation for test mocks
+  - Improved CI/CD workflow with fallback mechanisms
+- Added integration guide for Mockingbird testing framework
+
 ## [1.13.0] - 2025-05-25
 
 ### Added
