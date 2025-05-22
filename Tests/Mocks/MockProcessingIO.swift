@@ -21,17 +21,17 @@ class MockOCRItem: OCRProcessable, Identifiable {
         self.imageData = data
     }
     
-    static func createReceiptItem(id: String? = nil) -> Tests.Mocks.MockOCRItem {
+    static func createReceiptItem(id: String? = nil) -> MockOCRItem {
         let itemId = id ?? "receipt-\(UUID().uuidString.prefix(8))"
         return MockOCRItem(id: itemId, documentType: .receipt)
     }
     
-    static func createCheckItem(id: String? = nil) -> Tests.Mocks.MockOCRItem {
+    static func createCheckItem(id: String? = nil) -> MockOCRItem {
         let itemId = id ?? "check-\(UUID().uuidString.prefix(8))"
         return MockOCRItem(id: itemId, documentType: .check)
     }
     
-    static func createAutoItem(id: String? = nil) -> Tests.Mocks.MockOCRItem {
+    static func createAutoItem(id: String? = nil) -> MockOCRItem {
         let itemId = id ?? "auto-\(UUID().uuidString.prefix(8))"
         return MockOCRItem(id: itemId, documentType: .auto)
     }
@@ -39,7 +39,7 @@ class MockOCRItem: OCRProcessable, Identifiable {
 
 /// Manual mock implementation of OCRProcessingIO for testing
 class MockProcessingIO: OCRProcessingIO {
-    typealias Item = Tests.Mocks.MockOCRItem
+    typealias Item = MockOCRItem
     
     // Queue management
     var items: [Item] = []

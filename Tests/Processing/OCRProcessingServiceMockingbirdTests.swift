@@ -10,10 +10,10 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
     
     // MARK: - Test Properties
     
-    // Using shared mock classes from the Mocks directory with prefix to avoid ambiguity
-    var mockSession: Tests.Mocks.MockURLSession!
-    var mockIO: Tests.Mocks.MockProcessingIO!
-    var processingService: OCRProcessingService<Tests.Mocks.MockProcessingIO>!
+    // Using mock classes from the common Mocks directory
+    var mockSession: MockURLSession!
+    var mockIO: MockProcessingIO!
+    var processingService: OCRProcessingService<MockProcessingIO>!
     
     // Using MockOCRItem and MockProcessingIO from the Mocks directory
     
@@ -125,8 +125,8 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
         super.setUp()
         
         // Initialize mock components manually
-        mockSession = Tests.Mocks.MockURLSession()
-        mockIO = Tests.Mocks.MockProcessingIO()
+        mockSession = MockURLSession()
+        mockIO = MockProcessingIO()
         
         // Set up OCRClient to use our mock session
         OCRClient.useCustomURLSession(mockSession)
@@ -196,6 +196,6 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
         XCTAssertGreaterThan(mockIO.getNextItemCallCount, 0, "getNextItemToProcess should be called")
         
         // Create a test item to verify generic constraints
-        let testItem = Tests.Mocks.MockOCRItem.createReceiptItem()
+        let testItem = MockOCRItem.createReceiptItem()
     }
 }
