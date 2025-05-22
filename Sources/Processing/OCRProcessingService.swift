@@ -82,10 +82,18 @@ public class OCRProcessingService<IO: OCRProcessingIO> where IO.Item: OCRProcess
         environment: ClientEnvironment = .production,
         processingInterval: TimeInterval = 2.0
     ) {
-        // Create a custom session with extended timeout
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 120  // 2 minutes
-        let session = URLSession(configuration: config)
+        // Get the session - either from OCRClient's shared test session or create a new one
+        let session: URLSessionProtocol
+        
+        if let testSession = OCRClient.getSessionForTest() {
+            // Use the test session if available
+            session = testSession
+        } else {
+            // Create a custom session with extended timeout
+            let config = URLSessionConfiguration.default
+            config.timeoutIntervalForRequest = 120  // 2 minutes
+            session = URLSession(configuration: config)
+        }
         
         self.io = io
         self.client = OCRClient(environment: environment, session: session)

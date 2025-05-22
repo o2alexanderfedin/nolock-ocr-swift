@@ -42,7 +42,10 @@ let package = Package(
             name: "NolockOCRTests",
             dependencies: ["NolockOCR"],
             path: "Tests",
-            exclude: ["README.md"]),
+            exclude: ["README.md"],
+            resources: [
+                .process("Resources")
+            ]),
     ],
     swiftLanguageVersions: [.v5]
 )
