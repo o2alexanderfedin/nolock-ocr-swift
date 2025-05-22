@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Integrated Mockingbird framework for improved test mocking
+- Added example test implementations using Mockingbird
+- Added mock generation script and configuration
+
 ## [1.11.0] - 2025-05-24
 
 ### Added
