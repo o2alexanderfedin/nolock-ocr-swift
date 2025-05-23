@@ -1,8 +1,9 @@
 import Foundation
 @testable import NolockOCR
 
-/// Manual mock for URLSessionProtocol
-class MockURLSession: URLSessionProtocol {
+/// Shared mock for URLSessionProtocol used across multiple test classes.
+/// To avoid ambiguity with other mock implementations, this class is named SharedMockURLSession.
+class SharedMockURLSession: URLSessionProtocol {
     // Response configuration
     var mockData: Data?
     var mockResponse: URLResponse?
@@ -90,7 +91,7 @@ class MockURLSession: URLSessionProtocol {
         lastRequestMethod = request.httpMethod
         requestsReceived.append(request)
         
-        let mockTask = MockURLSessionDataTask()
+        let mockTask = SharedMockURLSessionDataTask()
         mockTask.completionHandler = completionHandler
         mockTask.mockSession = self
         mockTask.mockRequest = request
@@ -128,8 +129,9 @@ class MockURLSession: URLSessionProtocol {
     }
 }
 
-/// Mock URLSessionDataTask for testing
-class MockURLSessionDataTask: URLSessionDataTask, @unchecked Sendable {
+/// Shared mock for URLSessionDataTask used with SharedMockURLSession.
+/// To avoid ambiguity with other mock implementations, this class is named SharedMockURLSessionDataTask.
+class SharedMockURLSessionDataTask: URLSessionDataTask, @unchecked Sendable {
     // Configuration
     var mockData: Data?
     var mockResponse: URLResponse?
@@ -139,7 +141,7 @@ class MockURLSessionDataTask: URLSessionDataTask, @unchecked Sendable {
     
     // Request tracking
     var mockRequest: URLRequest?
-    weak var mockSession: MockURLSession?
+    weak var mockSession: SharedMockURLSession?
     var completionHandler: ((Data?, URLResponse?, Error?) -> Void)?
     var isCancelled = false
     var isResumed = false

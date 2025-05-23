@@ -10,124 +10,10 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
     
     // MARK: - Test Properties
     
-    // Using the same mock classes from OCRProcessingServiceTests
-    var mockSession: MockURLSession!
-    var mockIO: MockIO!
-    var processingService: OCRProcessingService<MockIO>!
-    
-    // Mock URLSession for testing
-    class MockURLSession: URLSessionProtocol {
-        // Response configuration
-        var mockData: Data?
-        var mockResponse: URLResponse?
-        var mockError: Error?
-        
-        // Tracking properties
-        var requestsReceived: [URLRequest] = []
-        var lastRequestURL: URL?
-        var lastRequestMethod: String?
-        
-        func data(from url: URL, delegate: URLSessionTaskDelegate?) async throws -> (Data, URLResponse) {
-            lastRequestURL = url
-            
-            if let error = mockError {
-                throw error
-            }
-            
-            guard let data = mockData, let response = mockResponse else {
-                throw NSError(domain: "MockURLSession", code: 1, userInfo: [NSLocalizedDescriptionKey: "No mock data or response"])
-            }
-            
-            return (data, response)
-        }
-        
-        func data(for request: URLRequest, delegate: URLSessionTaskDelegate?) async throws -> (Data, URLResponse) {
-            lastRequestURL = request.url
-            lastRequestMethod = request.httpMethod
-            requestsReceived.append(request)
-            
-            if let error = mockError {
-                throw error
-            }
-            
-            guard let data = mockData, let response = mockResponse else {
-                throw NSError(domain: "MockURLSession", code: 1, userInfo: [NSLocalizedDescriptionKey: "No mock data or response"])
-            }
-            
-            return (data, response)
-        }
-        
-        func dataTask(with request: URLRequest, completionHandler: @escaping (Data?, URLResponse?, Error?) -> Void) -> URLSessionDataTask {
-            lastRequestURL = request.url
-            lastRequestMethod = request.httpMethod
-            requestsReceived.append(request)
-            
-            let task = MockURLSessionDataTask()
-            
-            // Schedule completion handler to be called asynchronously
-            DispatchQueue.global().async {
-                if let error = self.mockError {
-                    completionHandler(nil, nil, error)
-                } else if let data = self.mockData, let response = self.mockResponse {
-                    completionHandler(data, response, nil)
-                } else {
-                    completionHandler(nil, nil, NSError(domain: "MockURLSession", code: 1, userInfo: [NSLocalizedDescriptionKey: "No mock data or response"]))
-                }
-            }
-            
-            return task
-        }
-    }
-    
-    // Mock URLSessionDataTask for testing
-    class MockURLSessionDataTask: URLSessionDataTask {
-        override func resume() {
-            // No-op for mock
-        }
-        
-        override func cancel() {
-            // No-op for mock
-        }
-    }
-    
-    // Mock OCR item class
-    class MockOCRItem: OCRProcessable, Identifiable {
-        let id: String
-        let imageData: Data
-        let documentType: DocumentType
-        var metadata: [String: Any]
-        
-        init(id: String, 
-             imageData: Data = Data(repeating: 0, count: 1024), 
-             documentType: DocumentType = .receipt,
-             metadata: [String: Any] = [:]) {
-            self.id = id
-            self.imageData = imageData
-            self.documentType = documentType
-            self.metadata = metadata
-        }
-    }
-    
-    // Mock IO class
-    class MockIO: OCRProcessingIO {
-        typealias Item = MockOCRItem
-        
-        var getNextItemToProcessWasCalled = false
-        var itemProcessedWasCalled = false
-        var itemToReturn: MockOCRItem?
-        var capturedResults: [Result<Any, Error>] = []
-        var items: [MockOCRItem] = []
-        
-        func getNextItemToProcess() async throws -> MockOCRItem? {
-            getNextItemToProcessWasCalled = true
-            return items.isEmpty ? nil : items.removeFirst()
-        }
-        
-        func itemProcessed(item: MockOCRItem, result: Result<Any, Error>) async throws {
-            itemProcessedWasCalled = true
-            capturedResults.append(result)
-        }
-    }
+    // Using shared mock classes from the Mocks subdirectories
+    var mockSession: SharedMockURLSession! // From Tests/Mocks/URL/
+    var mockIO: MockProcessingIO! // From Tests/Mocks/Processing/
+    var processingService: OCRProcessingService<MockProcessingIO>!
     
     // MARK: - Test Data
     
@@ -237,8 +123,8 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
         super.setUp()
         
         // Initialize mock components manually
-        mockSession = MockURLSession()
-        mockIO = MockIO()
+        mockSession = SharedMockURLSession()
+        mockIO = MockProcessingIO()
         
         // Set up OCRClient to use our mock session
         OCRClient.useCustomURLSession(mockSession)
@@ -253,7 +139,7 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
         
         // Configure mock session with test data
         mockSession.mockResponse = mockResponse
-        mockSession.mockData = mockReceiptResponseJSON.data(using: .utf8)!
+        mockSession.mockData = OCRProcessingServiceMockingbirdTests.mockReceiptResponseJSON.data(using: .utf8)!
     }
     
     override func tearDown() {
@@ -305,6 +191,8 @@ class OCRProcessingServiceMockingbirdTests: XCTestCase {
         wait(for: [expectation], timeout: 1.0)
         
         // Verify getNextItemToProcess was called
-        XCTAssertTrue(mockIO.getNextItemToProcessWasCalled, "getNextItemToProcess should be called")
+        XCTAssertGreaterThan(mockIO.getNextItemCallCount, 0, "getNextItemToProcess should be called")
+        
+        // No need to create a test item, we're just testing initialization
     }
 }
