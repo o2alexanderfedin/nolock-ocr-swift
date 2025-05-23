@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.15.1] - 2025-05-23
+
+### Added
+- Added BasicOCRProcessingTests class with modern Swift async/await patterns
+- Implemented comprehensive test coverage for OCRProcessingService core functionality:
+  - Service initialization and configuration
+  - Empty queue behavior handling
+  - Cancellation and status tracking
+  - Work notification workflows
+- Added mock image data generation system to avoid file path dependencies
+- Improved test reliability with proper URLSession mocking for different endpoints
+- Enhanced test documentation and code organization
+
+### Fixed
+- Resolved test image loading issues by implementing mock data generation
+- Fixed JSON response structure mismatch between receipt and check endpoints
+- Improved test stability by removing dependency on absolute file paths
+
 ## [1.15.0] - 2025-05-28
 
 ### Added
