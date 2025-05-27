@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.16.0] - 2025-05-26
+
+### Changed
+- **BREAKING**: Made all model fields optional for improved OCR resilience
+  - Receipt model: All fields including merchant, timestamp, totals, currency, and confidence are now optional
+  - Check model: All fields including checkNumber, date, payee, and confidence are now optional
+  - Common model: All Confidence fields (ocr, extraction, overall) are now optional
+- Updated all model initializers and decoding methods to handle optional fields
+- Enhanced test suite to properly handle optional model structure with nil-coalescing operators
+
+### Fixed
+- Updated test files to use optional chaining and proper nil handling for model fields
+- Fixed compilation errors in test suite caused by optional model changes
+- Improved string interpolation in test logging to handle optional values
+
 ## [1.15.1] - 2025-05-23
 
 ### Added
