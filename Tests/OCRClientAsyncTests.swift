@@ -10,7 +10,9 @@ class OCRClientAsyncTests: XCTestCase {
     ]
     // Mock success response to simulate URLSession responses
     private func mockSuccessResponse<T: Encodable>(data: T) -> (Data, URLResponse) {
-        let jsonData = try! JSONEncoder().encode(data)
+        guard let jsonData = try? JSONEncoder().encode(data) else {
+            fatalError("Failed to encode mock data")
+        }
         let response = HTTPURLResponse(
             url: URL(string: "https://ocr-checks-worker.af-4a0.workers.dev")!,
             statusCode: 200,

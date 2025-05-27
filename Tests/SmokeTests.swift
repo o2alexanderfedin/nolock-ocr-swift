@@ -95,7 +95,8 @@ class SmokeTests: XCTestCase {
         do {
             return try Data(contentsOf: url)
         } catch {
-            throw NSError(domain: "SmokeTest", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to load resource: \(name) - \(error.localizedDescription)"])
+            let errorMessage = "Failed to load resource: \(name) - \(error.localizedDescription)"
+            throw NSError(domain: "SmokeTest", code: 1, userInfo: [NSLocalizedDescriptionKey: errorMessage])
         }
     }
     

@@ -361,7 +361,7 @@ class BasicOCRProcessingTests: XCTestCase {
         processingService.statusHandler = { [weak self] status in
             guard let self = self else { return }
             if case .processing(let completed, _) = status {
-                if completed > 0 && self.mockIO.processedItems.count > 0 {
+                if completed > 0 && !self.mockIO.processedItems.isEmpty {
                     processedItemIds = Set(self.mockIO.processedItems.map { $0.id })
                 }
             }

@@ -266,7 +266,9 @@ class OCRClientIntegrationTests: XCTestCase {
         }
         
         // Generate a descriptive filename for the server
-        let serverFilename = "test-\(testCase.endpoint.displayName)-\(UUID().uuidString.prefix(8)).\(testCase.image.filename.split(separator: ".").last ?? "jpg")"
+        let uuid = UUID().uuidString.prefix(8)
+        let fileExtension = testCase.image.filename.split(separator: ".").last ?? "jpg"
+        let serverFilename = "test-\(testCase.endpoint.displayName)-\(uuid).\(fileExtension)"
         
         // Process the image with the appropriate endpoint
         switch testCase.endpoint {
@@ -385,7 +387,10 @@ class OCRClientIntegrationTests: XCTestCase {
         }
         
         // Log the response for debugging
-        print("Check processing result: number=\(result.data.checkNumber ?? "N/A"), amount=\(String(describing: result.data.amount)), as string=\(String(describing: result.data.amountString))")
+        let checkNumber = result.data.checkNumber ?? "N/A"
+        let amount = String(describing: result.data.amount)
+        let amountString = String(describing: result.data.amountString)
+        print("Check processing result: number=\(checkNumber), amount=\(amount), as string=\(amountString)")
     }
     
     /// Verify receipt processing results
@@ -425,7 +430,10 @@ class OCRClientIntegrationTests: XCTestCase {
         }
         
         // Log the response for debugging
-        print("Receipt processing result: merchant=\(result.data.merchant?.name ?? "N/A"), total=\(String(describing: result.data.totals?.total)), as string=\(String(describing: result.data.totals?.totalString))")
+        let merchantName = result.data.merchant?.name ?? "N/A"
+        let total = String(describing: result.data.totals?.total)
+        let totalString = String(describing: result.data.totals?.totalString)
+        print("Receipt processing result: merchant=\(merchantName), total=\(total), as string=\(totalString)")
     }
     
     /// Verify document processing results
