@@ -180,14 +180,14 @@ class EnvironmentIntegrationTests: XCTestCase {
         }
         
         // Common verifications
-        XCTAssertGreaterThan(result.confidence.overall, 0, "Overall confidence should be positive")
+        XCTAssertGreaterThan(result.confidence.overall ?? 0, 0, "Overall confidence should be positive")
         
         // Verify specific expected values based on environment
         // Since OCR results can vary, we'll just check that we got a non-empty check number
-        XCTAssertFalse(result.data.checkNumber.isEmpty, "Check number should not be empty")
+        XCTAssertFalse(result.data.checkNumber?.isEmpty ?? true, "Check number should not be empty")
         print("Note: Expected check number validation skipped as OCR results can vary")
         if let expectedCheckNumber = config.expectedValues["checkNumber"] as? String {
-            print("FYI - Expected check number was \(expectedCheckNumber), actual check number is \(result.data.checkNumber)")
+            print("FYI - Expected check number was \(expectedCheckNumber), actual check number is \(result.data.checkNumber ?? "N/A")")
         }
         
         // Since the OCR results can vary between runs, we'll just validate that we have a non-zero amount
@@ -198,11 +198,11 @@ class EnvironmentIntegrationTests: XCTestCase {
         
         // Log the response for debugging
         print("Successfully processed check in \(config.name):")
-        print("Check Number: \(result.data.checkNumber)")
+        print("Check Number: \(result.data.checkNumber ?? "N/A")")
         if let amount = result.data.amount {
             print("Amount: \(amount)")
         }
-        print("Confidence: \(result.confidence.overall)")
+        print("Confidence: \(result.confidence.overall ?? 0)")
     }
     
     /// Test receipt processing in the target environment
@@ -236,15 +236,15 @@ class EnvironmentIntegrationTests: XCTestCase {
             }
             
             // Common verifications
-            XCTAssertGreaterThan(result.confidence.overall, 0, "Overall confidence should be positive")
+            XCTAssertGreaterThan(result.confidence.overall ?? 0, 0, "Overall confidence should be positive")
             
             // Log the response for debugging
             print("Successfully processed receipt in \(config.name):")
-            print("Merchant: \(result.data.merchant.name)")
-            if let total = result.data.totals.total {
+            print("Merchant: \(result.data.merchant?.name ?? "N/A")")
+            if let total = result.data.totals?.total {
                 print("Total: \(total)")
             }
-            print("Confidence: \(result.confidence.overall)")
+            print("Confidence: \(result.confidence.overall ?? 0)")
         } catch {
             // For production, timeouts are expected and acceptable
             if config.name == "Production", let ocrError = error as? OCRError, 
