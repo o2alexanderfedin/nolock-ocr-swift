@@ -381,9 +381,9 @@ class OCRClientUnitTests: XCTestCase {
         let response = try await client.processReceipt(imageData: Data())
         
         // Verify merchant data
-        XCTAssertEqual(response.data.merchant.name, "Coffee Shop")
-        XCTAssertEqual(response.data.merchant.address, "123 Main St, Anytown, USA")
-        XCTAssertEqual(response.data.merchant.phone, "555-123-4567")
+        XCTAssertEqual(response.data.merchant?.name, "Coffee Shop")
+        XCTAssertEqual(response.data.merchant?.address, "123 Main St, Anytown, USA")
+        XCTAssertEqual(response.data.merchant?.phone, "555-123-4567")
         
         // Verify receipt data
         XCTAssertEqual(response.data.receiptNumber, "R-20250521-1234")
@@ -391,9 +391,9 @@ class OCRClientUnitTests: XCTestCase {
         XCTAssertEqual(response.data.currency, "USD")
         
         // Verify totals
-        XCTAssertTrue(abs((response.data.totals.subtotal ?? 0) - Decimal(15.50)) < Decimal(0.0001), "Subtotal should be approximately 15.50")
-        XCTAssertTrue(abs((response.data.totals.tax ?? 0) - Decimal(1.24)) < Decimal(0.0001), "Tax should be approximately 1.24")
-        XCTAssertTrue(abs((response.data.totals.total ?? 0) - Decimal(16.74)) < Decimal(0.0001), "Total should be approximately 16.74")
+        XCTAssertTrue(abs((response.data.totals?.subtotal ?? 0) - Decimal(15.50)) < Decimal(0.0001), "Subtotal should be approximately 15.50")
+        XCTAssertTrue(abs((response.data.totals?.tax ?? 0) - Decimal(1.24)) < Decimal(0.0001), "Tax should be approximately 1.24")
+        XCTAssertTrue(abs((response.data.totals?.total ?? 0) - Decimal(16.74)) < Decimal(0.0001), "Total should be approximately 16.74")
         
         // Verify line items (if available)
         XCTAssertEqual(response.data.items?.count, 3)
@@ -725,9 +725,9 @@ class OCRClientUnitTests: XCTestCase {
             switch result {
             case .success(let response):
                 // Verify data
-                XCTAssertEqual(response.data.merchant.name, "Coffee Shop")
+                XCTAssertEqual(response.data.merchant?.name, "Coffee Shop")
                 // Use approximately equal for floating point comparison
-                XCTAssertTrue(abs((response.data.totals.total ?? 0) - Decimal(16.74)) < Decimal(0.0001), "Total should be approximately 16.74")
+                XCTAssertTrue(abs((response.data.totals?.total ?? 0) - Decimal(16.74)) < Decimal(0.0001), "Total should be approximately 16.74")
                 expectation.fulfill()
             case .failure:
                 XCTFail("Should not fail")

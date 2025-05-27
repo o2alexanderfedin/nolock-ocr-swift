@@ -95,15 +95,15 @@ class SimpleProductionTest: XCTestCase {
         }
         
         // Verify we got valid check data
-        XCTAssertGreaterThan(result.confidence.overall, 0, "Overall confidence should be positive")
+        XCTAssertGreaterThan(result.confidence.overall ?? 0, 0, "Overall confidence should be positive")
         
         // Log the response for debugging
         print("Successfully processed check:")
-        print("Check Number: \(result.data.checkNumber)")
+        print("Check Number: \(result.data.checkNumber ?? "N/A")")
         if let amount = result.data.amount {
             print("Amount: \(amount)")
         }
-        print("Confidence: \(result.confidence.overall)")
+        print("Confidence: \(result.confidence.overall ?? 0)")
     }
     
     // MARK: - Timeout Handling

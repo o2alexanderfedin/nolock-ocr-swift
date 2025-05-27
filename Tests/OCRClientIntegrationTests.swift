@@ -347,9 +347,9 @@ class OCRClientIntegrationTests: XCTestCase {
     /// Verify check processing results
     private func verifyCheckResult(_ result: CheckResponse, expectedValues: [String: Any]) {
         // Common validations
-        XCTAssertGreaterThan(result.confidence.ocr, 0, "OCR confidence should be positive")
-        XCTAssertGreaterThan(result.confidence.extraction, 0, "Extraction confidence should be positive")
-        XCTAssertGreaterThan(result.confidence.overall, 0, "Overall confidence should be positive")
+        XCTAssertGreaterThan(result.confidence.ocr ?? 0, 0, "OCR confidence should be positive")
+        XCTAssertGreaterThan(result.confidence.extraction ?? 0, 0, "Extraction confidence should be positive")
+        XCTAssertGreaterThan(result.confidence.overall ?? 0, 0, "Overall confidence should be positive")
         
         // Specific validations from expected values
         for (key, expectedValue) in expectedValues {
@@ -385,25 +385,25 @@ class OCRClientIntegrationTests: XCTestCase {
         }
         
         // Log the response for debugging
-        print("Check processing result: number=\(result.data.checkNumber), amount=\(String(describing: result.data.amount)), as string=\(String(describing: result.data.amountString))")
+        print("Check processing result: number=\(result.data.checkNumber ?? "N/A"), amount=\(String(describing: result.data.amount)), as string=\(String(describing: result.data.amountString))")
     }
     
     /// Verify receipt processing results
     private func verifyReceiptResult(_ result: ReceiptResponse, expectedValues: [String: Any]) {
         // Common validations
-        XCTAssertGreaterThan(result.confidence.ocr, 0, "OCR confidence should be positive")
-        XCTAssertGreaterThan(result.confidence.extraction, 0, "Extraction confidence should be positive")
-        XCTAssertGreaterThan(result.confidence.overall, 0, "Overall confidence should be positive")
+        XCTAssertGreaterThan(result.confidence.ocr ?? 0, 0, "OCR confidence should be positive")
+        XCTAssertGreaterThan(result.confidence.extraction ?? 0, 0, "Extraction confidence should be positive")
+        XCTAssertGreaterThan(result.confidence.overall ?? 0, 0, "Overall confidence should be positive")
         
         // Specific validations from expected values
         for (key, expectedValue) in expectedValues {
             switch key {
             case "merchant.name":
                 if let expected = expectedValue as? String {
-                    XCTAssertEqual(result.data.merchant.name, expected, "Merchant name should match expected value")
+                    XCTAssertEqual(result.data.merchant?.name, expected, "Merchant name should match expected value")
                 }
             case "totals.total":
-                guard let total = result.data.totals.total else {
+                guard let total = result.data.totals?.total else {
                     XCTFail("Expected total to be present but it was nil")
                     break
                 }
@@ -425,15 +425,15 @@ class OCRClientIntegrationTests: XCTestCase {
         }
         
         // Log the response for debugging
-        print("Receipt processing result: merchant=\(result.data.merchant.name), total=\(String(describing: result.data.totals.total)), as string=\(String(describing: result.data.totals.totalString))")
+        print("Receipt processing result: merchant=\(result.data.merchant?.name ?? "N/A"), total=\(String(describing: result.data.totals?.total)), as string=\(String(describing: result.data.totals?.totalString))")
     }
     
     /// Verify document processing results
     private func verifyDocumentResult(_ result: DocumentResponse, expectedValues: [String: Any]) {
         // Common validations
-        XCTAssertGreaterThan(result.confidence.ocr, 0, "OCR confidence should be positive")
-        XCTAssertGreaterThan(result.confidence.extraction, 0, "Extraction confidence should be positive")
-        XCTAssertGreaterThan(result.confidence.overall, 0, "Overall confidence should be positive")
+        XCTAssertGreaterThan(result.confidence.ocr ?? 0, 0, "OCR confidence should be positive")
+        XCTAssertGreaterThan(result.confidence.extraction ?? 0, 0, "Extraction confidence should be positive")
+        XCTAssertGreaterThan(result.confidence.overall ?? 0, 0, "Overall confidence should be positive")
         
         // Specific validations from expected values
         for (key, expectedValue) in expectedValues {
