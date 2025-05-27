@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.17.0] - 2025-05-27
+
+### Added
+- Mock image data generation system for SmokeTests to eliminate external file dependencies
+- Self-contained test infrastructure with JPEG-like mock data generation
+
+### Fixed
+- **CI/CD Pipeline**: Resolved all SwiftLint violations blocking pipeline execution
+  - Fixed line length violations by extracting variables in test files
+  - Replaced `count > 0` with `!isEmpty` for better Swift style
+  - Replaced `try!` with proper `guard`/`fatalError` patterns
+- **Test Dependencies**: Eliminated file dependency issues in SmokeTests
+  - Replaced file-based image loading with in-memory mock data generation
+  - Removed dependency on external `test_image.jpg` files
+- **String Interpolation**: Fixed optional value handling in test logging
+
+### Performance
+- Reduced SmokeTests retry count from 20 to 3 attempts for faster CI/CD execution
+- Decreased retry delay from 1.0 to 0.5 seconds between attempts
+- Significantly improved CI/CD pipeline execution time (from 20+ minutes to ~5-10 minutes)
+
+### Technical Improvements
+- Enhanced code quality with systematic SwiftLint compliance
+- Improved test reliability with self-contained mock data
+- Better error handling patterns throughout test suite
+
 ## [1.16.0] - 2025-05-26
 
 ### Changed

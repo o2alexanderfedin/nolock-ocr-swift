@@ -18,7 +18,8 @@ final class MoneyFormatterTests: XCTestCase {
         let testValues: [Decimal] = [100, 0, 12.34, 0.5, -99.99, -0.01]
         
         for value in testValues {
-            let expectedResult = testFormatter.string(from: value as NSDecimalNumber)?.replacingOccurrences(of: testFormatter.groupingSeparator, with: "") ?? "\(value)"
+            let formattedString = testFormatter.string(from: value as NSDecimalNumber)
+            let expectedResult = formattedString?.replacingOccurrences(of: testFormatter.groupingSeparator, with: "") ?? "\(value)"
             XCTAssertEqual(formatter.formatDecimal(value), expectedResult)
         }
     }
