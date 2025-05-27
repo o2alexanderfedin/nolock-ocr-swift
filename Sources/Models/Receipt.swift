@@ -96,7 +96,7 @@ public enum UnitOfMeasure: String, Codable, SafeDecodableEnum {
 /// Merchant information
 public struct MerchantInfo: Codable {
     /// Name of the merchant or store
-    public let name: String
+    public let name: String?
     
     /// Physical address of the merchant
     public let address: String?
@@ -118,7 +118,7 @@ public struct MerchantInfo: Codable {
     
     /// Standard initializer for creating merchant info programmatically
     public init(
-        name: String,
+        name: String?,
         address: String?,
         phone: String?,
         website: String?,
@@ -255,7 +255,7 @@ public struct ReceiptTotals: Codable, MoneyFormattable {
 /// Line item on the receipt
 public struct ReceiptLineItem: Codable, MoneyFormattable {
     /// Item description or name
-    public let description: String
+    public let description: String?
     
     /// Stock keeping unit or product code
     public let sku: String?
@@ -303,7 +303,7 @@ public struct ReceiptLineItem: Codable, MoneyFormattable {
     
     /// Standard initializer for creating line items programmatically
     public init(
-        description: String,
+        description: String?,
         sku: String?,
         quantity: Double?,
         unit: String?,
@@ -326,7 +326,7 @@ public struct ReceiptLineItem: Codable, MoneyFormattable {
     
     /// Alternative initializer for creating line items from string values
     public init(
-        description: String,
+        description: String?,
         sku: String?,
         quantity: Double?,
         unit: String?,
@@ -357,8 +357,8 @@ public struct ReceiptLineItem: Codable, MoneyFormattable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        // Decode required fields
-        description = try container.decode(String.self, forKey: .description)
+        // Decode optional fields
+        description = try container.decodeIfPresent(String.self, forKey: .description)
         
         // Decode optional fields
         sku = try container.decodeIfPresent(String.self, forKey: .sku)
@@ -383,7 +383,7 @@ public struct ReceiptLineItem: Codable, MoneyFormattable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
         // Encode all fields
-        try container.encode(description, forKey: .description)
+        try container.encodeIfPresent(description, forKey: .description)
         try container.encodeIfPresent(sku, forKey: .sku)
         try container.encodeIfPresent(quantity, forKey: .quantity)
         try container.encodeIfPresent(unit, forKey: .unit)
@@ -398,7 +398,7 @@ public struct ReceiptLineItem: Codable, MoneyFormattable {
 /// Tax item on a receipt
 public struct ReceiptTaxItem: Codable, MoneyFormattable {
     /// Name of tax (e.g., 'VAT', 'Sales Tax')
-    public let taxName: String
+    public let taxName: String?
     
     /// Type of tax
     public let taxType: String?
@@ -425,7 +425,7 @@ public struct ReceiptTaxItem: Codable, MoneyFormattable {
     
     /// Standard initializer for creating tax items programmatically
     public init(
-        taxName: String,
+        taxName: String?,
         taxType: String?,
         taxRate: Decimal?,
         taxAmount: Decimal?
@@ -438,7 +438,7 @@ public struct ReceiptTaxItem: Codable, MoneyFormattable {
     
     /// Alternative initializer for creating tax items from string values
     public init(
-        taxName: String,
+        taxName: String?,
         taxType: String?,
         taxRateString: String?,
         taxAmountString: String?
@@ -458,8 +458,8 @@ public struct ReceiptTaxItem: Codable, MoneyFormattable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        // Decode required fields
-        taxName = try container.decode(String.self, forKey: .taxName)
+        // Decode optional fields
+        taxName = try container.decodeIfPresent(String.self, forKey: .taxName)
         
         // Decode optional fields
         taxType = try container.decodeIfPresent(String.self, forKey: .taxType)
@@ -478,7 +478,7 @@ public struct ReceiptTaxItem: Codable, MoneyFormattable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
         // Encode all fields
-        try container.encode(taxName, forKey: .taxName)
+        try container.encodeIfPresent(taxName, forKey: .taxName)
         try container.encodeIfPresent(taxType, forKey: .taxType)
         try container.encodeIfPresent(taxRate, forKey: .taxRate)
         try container.encodeIfPresent(taxAmount, forKey: .taxAmount)
@@ -488,7 +488,7 @@ public struct ReceiptTaxItem: Codable, MoneyFormattable {
 /// Payment method used on a receipt
 public struct ReceiptPaymentMethod: Codable, MoneyFormattable {
     /// Method of payment
-    public let method: PaymentMethod
+    public let method: PaymentMethod?
     
     /// Type of card
     public let cardType: String?
@@ -512,7 +512,7 @@ public struct ReceiptPaymentMethod: Codable, MoneyFormattable {
     
     /// Standard initializer for creating payment methods programmatically
     public init(
-        method: PaymentMethod,
+        method: PaymentMethod?,
         cardType: String?,
         lastDigits: String?,
         amount: Decimal?,
@@ -527,7 +527,7 @@ public struct ReceiptPaymentMethod: Codable, MoneyFormattable {
     
     /// Alternative initializer for creating payment methods from string values
     public init(
-        method: PaymentMethod,
+        method: PaymentMethod?,
         cardType: String?,
         lastDigits: String?,
         amountString: String?,
@@ -548,8 +548,8 @@ public struct ReceiptPaymentMethod: Codable, MoneyFormattable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        // Decode required fields
-        method = try container.decode(PaymentMethod.self, forKey: .method)
+        // Decode optional fields
+        method = try container.decodeIfPresent(PaymentMethod.self, forKey: .method)
         
         // Decode optional fields
         cardType = try container.decodeIfPresent(String.self, forKey: .cardType)
@@ -569,7 +569,7 @@ public struct ReceiptPaymentMethod: Codable, MoneyFormattable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
         // Encode all fields
-        try container.encode(method, forKey: .method)
+        try container.encodeIfPresent(method, forKey: .method)
         try container.encodeIfPresent(cardType, forKey: .cardType)
         try container.encodeIfPresent(lastDigits, forKey: .lastDigits)
         try container.encodeIfPresent(amount, forKey: .amount)
@@ -580,7 +580,7 @@ public struct ReceiptPaymentMethod: Codable, MoneyFormattable {
 /// Receipt metadata information
 public struct ReceiptMetadata: Codable {
     /// Overall confidence of extraction (0-1)
-    public let confidenceScore: Double
+    public let confidenceScore: Double?
     
     /// ISO currency code detected
     public let currency: String?
@@ -602,7 +602,7 @@ public struct ReceiptMetadata: Codable {
     
     /// Standard initializer for creating receipt metadata programmatically
     public init(
-        confidenceScore: Double,
+        confidenceScore: Double?,
         currency: String?,
         languageCode: String?,
         timeZone: String?,
@@ -623,7 +623,7 @@ public struct ReceiptMetadata: Codable {
 /// Receipt data extracted from an image
 public struct Receipt: Codable {
     /// Merchant information
-    public let merchant: MerchantInfo
+    public let merchant: MerchantInfo?
     
     /// Receipt or invoice number
     public let receiptNumber: String?
@@ -632,10 +632,11 @@ public struct Receipt: Codable {
     public let receiptType: ReceiptType?
     
     /// Date and time of transaction (ISO 8601 format) as string
-    public let timestamp: String
+    public let timestamp: String?
     
     /// Computed property to access timestamp as Date object
     public var timestampDate: Date? {
+        guard let timestamp = timestamp else { return nil }
         let formatter = ISO8601DateFormatter()
         return formatter.date(from: timestamp)
     }
@@ -644,10 +645,10 @@ public struct Receipt: Codable {
     public let paymentMethod: String?
     
     /// Totals information
-    public let totals: ReceiptTotals
+    public let totals: ReceiptTotals?
     
     /// 3-letter ISO currency code
-    public let currency: String
+    public let currency: String?
     
     /// List of line items on the receipt
     public let items: [ReceiptLineItem]?
@@ -665,23 +666,23 @@ public struct Receipt: Codable {
     public let metadata: ReceiptMetadata?
     
     /// Confidence score for the receipt overall
-    public let confidence: Double
+    public let confidence: Double?
     
     /// Standard initializer for creating receipts programmatically
     public init(
-        merchant: MerchantInfo,
+        merchant: MerchantInfo?,
         receiptNumber: String?,
         receiptType: ReceiptType?,
-        timestamp: String,
+        timestamp: String?,
         paymentMethod: String?,
-        totals: ReceiptTotals,
-        currency: String,
+        totals: ReceiptTotals?,
+        currency: String?,
         items: [ReceiptLineItem]?,
         taxes: [ReceiptTaxItem]?,
         payments: [ReceiptPaymentMethod]?,
         notes: [String]?,
         metadata: ReceiptMetadata?,
-        confidence: Double
+        confidence: Double?
     ) {
         self.merchant = merchant
         self.receiptNumber = receiptNumber

@@ -5,13 +5,24 @@ import Foundation
 /// Confidence scores for the OCR process and data extraction
 public struct Confidence: Codable {
     /// OCR process confidence score (0-1)
-    public let ocr: Double
+    public let ocr: Double?
     
     /// Data extraction confidence score (0-1)
-    public let extraction: Double
+    public let extraction: Double?
     
     /// Overall confidence score (0-1)
-    public let overall: Double
+    public let overall: Double?
+    
+    /// Standard initializer for creating confidence scores programmatically
+    public init(
+        ocr: Double?,
+        extraction: Double?,
+        overall: Double?
+    ) {
+        self.ocr = ocr
+        self.extraction = extraction
+        self.overall = overall
+    }
 }
 
 /// Error response returned by the API

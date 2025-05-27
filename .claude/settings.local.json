@@ -22,7 +22,12 @@
       "WebFetch(domain:github.com)",
       "Bash(gh run list:*)",
       "Bash(gh run view:*)",
-      "Bash(./run_tests testMalformedResponseHandling)"
+      "Bash(./run_tests testMalformedResponseHandling)",
+      "Bash(git stash:*)",
+      "Bash(gh repo view:*)",
+      "Bash(gh repo edit:*)",
+      "Bash(swift build)",
+      "Bash(swift test:*)"
     ],
     "deny": []
   }

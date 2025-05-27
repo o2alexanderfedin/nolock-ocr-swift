@@ -30,7 +30,7 @@ public enum BankAccountType: String, Codable, SafeDecodableEnum {
 /// Check metadata with confidence and source information
 public struct CheckMetadata: Codable {
     /// Overall confidence of extraction (0-1)
-    public let confidenceScore: Double
+    public let confidenceScore: Double?
     
     /// Reference to the source image
     public let sourceImageId: String?
@@ -45,19 +45,20 @@ public struct CheckMetadata: Codable {
 /// Check data extracted from an image
 public struct Check: Codable {
     /// Check number or identifier
-    public let checkNumber: String
+    public let checkNumber: String?
     
     /// Date on the check (ISO 8601 format) as string
-    public let date: String
+    public let date: String?
     
     /// Computed property to access date as Date object
     public var dateValue: Date? {
+        guard let date = date else { return nil }
         let formatter = ISO8601DateFormatter()
         return formatter.date(from: date)
     }
     
     /// Person or entity to whom the check is payable
-    public let payee: String
+    public let payee: String?
     
     /// Person or entity who wrote/signed the check
     public let payer: String?
@@ -73,9 +74,9 @@ public struct Check: Codable {
     
     /// Standard initializer for creating checks programmatically
     public init(
-        checkNumber: String,
-        date: String,
-        payee: String,
+        checkNumber: String?,
+        date: String?,
+        payee: String?,
         payer: String?,
         amount: Decimal?,
         amountText: String?,
@@ -90,7 +91,7 @@ public struct Check: Codable {
         fractionalCode: String?,
         micrLine: String?,
         metadata: CheckMetadata?,
-        confidence: Double
+        confidence: Double?
     ) {
         self.checkNumber = checkNumber
         self.date = date
@@ -114,9 +115,9 @@ public struct Check: Codable {
     
     /// Alternative initializer that accepts a string amount
     public init(
-        checkNumber: String,
-        date: String,
-        payee: String,
+        checkNumber: String?,
+        date: String?,
+        payee: String?,
         payer: String?,
         amountString: String?,
         amountText: String?,
@@ -131,7 +132,7 @@ public struct Check: Codable {
         fractionalCode: String?,
         micrLine: String?,
         metadata: CheckMetadata?,
-        confidence: Double
+        confidence: Double?
     ) {
         // Convert string amount to Decimal (can be nil)
         let decimalAmount = amountString.flatMap { Decimal(string: $0) }
@@ -162,10 +163,10 @@ public struct Check: Codable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        // Decode required fields
-        checkNumber = try container.decode(String.self, forKey: .checkNumber)
-        date = try container.decode(String.self, forKey: .date)
-        payee = try container.decode(String.self, forKey: .payee)
+        // Decode optional fields
+        checkNumber = try container.decodeIfPresent(String.self, forKey: .checkNumber)
+        date = try container.decodeIfPresent(String.self, forKey: .date)
+        payee = try container.decodeIfPresent(String.self, forKey: .payee)
         
         // Handle optional fields
         payer = try container.decodeIfPresent(String.self, forKey: .payer)
@@ -181,7 +182,7 @@ public struct Check: Codable {
         fractionalCode = try container.decodeIfPresent(String.self, forKey: .fractionalCode)
         micrLine = try container.decodeIfPresent(String.self, forKey: .micrLine)
         metadata = try container.decodeIfPresent(CheckMetadata.self, forKey: .metadata)
-        confidence = try container.decode(Double.self, forKey: .confidence)
+        confidence = try container.decodeIfPresent(Double.self, forKey: .confidence)
         
         // Decode amount as optional using the shared MoneyFormatter
         amount = try MoneyFormatter.shared.decodeDecimalValue(from: container, forKey: .amount)
@@ -198,9 +199,9 @@ public struct Check: Codable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
         // Encode all fields
-        try container.encode(checkNumber, forKey: .checkNumber)
-        try container.encode(date, forKey: .date)
-        try container.encode(payee, forKey: .payee)
+        try container.encodeIfPresent(checkNumber, forKey: .checkNumber)
+        try container.encodeIfPresent(date, forKey: .date)
+        try container.encodeIfPresent(payee, forKey: .payee)
         try container.encodeIfPresent(payer, forKey: .payer)
         try container.encodeIfPresent(amount, forKey: .amount)
         try container.encodeIfPresent(amountText, forKey: .amountText)
@@ -215,7 +216,7 @@ public struct Check: Codable {
         try container.encodeIfPresent(fractionalCode, forKey: .fractionalCode)
         try container.encodeIfPresent(micrLine, forKey: .micrLine)
         try container.encodeIfPresent(metadata, forKey: .metadata)
-        try container.encode(confidence, forKey: .confidence)
+        try container.encodeIfPresent(confidence, forKey: .confidence)
     }
     
     /// Written text amount of the check
@@ -255,7 +256,7 @@ public struct Check: Codable {
     public let metadata: CheckMetadata?
     
     /// Confidence score for the check overall
-    public let confidence: Double
+    public let confidence: Double?
 }
 
 /// Check processing response
