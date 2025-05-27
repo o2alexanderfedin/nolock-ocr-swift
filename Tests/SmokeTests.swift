@@ -13,9 +13,9 @@ class SmokeTests: XCTestCase {
     // Use a custom URL for staging if needed
     lazy var stagingEnvironment: ClientEnvironment = .custom(URL(string: "https://ocr-checks-worker-staging.af-4a0.workers.dev")!)
     
-    // Configure retry settings
-    let maxAttempts = 20
-    let delayBetweenAttempts: TimeInterval = 1.0
+    // Configure retry settings for CI/CD efficiency
+    let maxAttempts = 3  // Reduced from 20 for faster CI/CD
+    let delayBetweenAttempts: TimeInterval = 0.5  // Reduced from 1.0 second
     
     // Test resources - using mock image data to avoid file dependencies
     static let mockImageData = SmokeTests.createMockImageData()
@@ -27,7 +27,7 @@ class SmokeTests: XCTestCase {
     ///   - testName: The name of the test
     ///   - maxAttempts: The maximum number of attempts to try
     ///   - test: The actual test to run, which returns a Bool indicating success
-    func runWithRetries(testName: String, maxAttempts: Int = 20, test: () async throws -> Bool) async {
+    func runWithRetries(testName: String, maxAttempts: Int = 3, test: () async throws -> Bool) async {
         var succeeded = false
         var lastError: Error?
         var attempts = 0
