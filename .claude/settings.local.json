@@ -34,7 +34,8 @@
       "Bash(timeout 30 swift test:*)",
       "Bash(gh release create:*)",
       "Bash(swift package:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(git flow feature:*)"
     ],
     "deny": []
   }
