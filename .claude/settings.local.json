@@ -27,7 +27,15 @@
       "Bash(gh repo view:*)",
       "Bash(gh repo edit:*)",
       "Bash(swift build)",
-      "Bash(swift test:*)"
+      "Bash(swift test:*)",
+      "Bash(swift build:*)",
+      "Bash(./run_smoke_tests.sh:*)",
+      "Bash(gh run cancel:*)",
+      "Bash(timeout 30 swift test:*)",
+      "Bash(gh release create:*)",
+      "Bash(swift package:*)",
+      "Bash(sed:*)",
+      "Bash(git flow feature:*)"
     ],
     "deny": []
   }

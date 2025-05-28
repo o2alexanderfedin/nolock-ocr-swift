@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.17.1] - 2025-05-27
+
+### Changed
+- Updated Claude Code settings with additional bash command permissions for enhanced development workflow
+- Added permissions for Swift build variants, smoke tests, GitHub actions, release creation, package management, and git flow commands
+
 ## [1.17.0] - 2025-05-27
 
 ### Added
