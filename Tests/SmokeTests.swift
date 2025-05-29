@@ -28,22 +28,42 @@ class SmokeTests: XCTestCase {
     ///   - maxAttempts: The maximum number of attempts to try
     ///   - test: The actual test to run, which returns a Bool indicating success
     func runWithRetries(testName: String, maxAttempts: Int = 3, test: () async throws -> Bool) async {
+        let testId = UUID().uuidString.prefix(6)
+        let testStartTime = Date()
+        
+        print("🧪 [ST-\(testId)] Starting smoke test: \(testName)")
+        print("⚙️ [ST-\(testId)] Max attempts: \(maxAttempts), Delay between attempts: \(delayBetweenAttempts)s")
+        
         var succeeded = false
         var lastError: Error?
         var attempts = 0
+        var totalRetryTime: TimeInterval = 0
         
         while !succeeded && attempts < maxAttempts {
             attempts += 1
-            print("🔄 \(testName): Attempt \(attempts)/\(maxAttempts)")
+            let attemptStartTime = Date()
+            
+            print("🔄 [ST-\(testId)] \(testName): Attempt \(attempts)/\(maxAttempts)")
             
             do {
                 succeeded = try await test()
+                let attemptTime = Date().timeIntervalSince(attemptStartTime)
+                
                 if succeeded {
-                    print("✅ \(testName): Success on attempt \(attempts)")
+                    let totalTime = Date().timeIntervalSince(testStartTime)
+                    print("✅ [ST-\(testId)] \(testName): SUCCESS on attempt \(attempts)")
+                    print("⏱️ [ST-\(testId)] Attempt time: \(String(format: "%.3f", attemptTime))s, Total time: \(String(format: "%.3f", totalTime))s")
                     break
+                } else {
+                    print("❌ [ST-\(testId)] \(testName): Test returned false on attempt \(attempts) (took \(String(format: "%.3f", attemptTime))s)")
                 }
             } catch let error as NSError {
+                let attemptTime = Date().timeIntervalSince(attemptStartTime)
                 lastError = error
+                
+                print("💥 [ST-\(testId)] \(testName): Error on attempt \(attempts) (took \(String(format: "%.3f", attemptTime))s)")
+                print("🔍 [ST-\(testId)] Error details: \(error.localizedDescription)")
+                print("🔍 [ST-\(testId)] Error domain: \(error.domain), code: \(error.code)")
                 
                 // Check if it's a timeout or resource limit error and ignore it
                 let isTimeout = error.domain == NSURLErrorDomain && 
@@ -54,33 +74,52 @@ class SmokeTests: XCTestCase {
                                      error.localizedDescription.contains("Error 1102")
                 
                 if isTimeout {
-                    print("⏱️ \(testName): Timeout on attempt \(attempts) - ignoring")
+                    print("⏱️ [ST-\(testId)] \(testName): TIMEOUT detected on attempt \(attempts) - ignoring and continuing")
+                    print("🔍 [ST-\(testId)] Timeout type: \(error.code == NSURLErrorTimedOut ? "TimedOut" : "Cancelled")")
                     // Don't count timeouts as failures
                     continue
                 } else if isResourceLimit {
-                    print("⚠️ \(testName): Resource limit exceeded on attempt \(attempts) - ignoring")
+                    print("⚠️ [ST-\(testId)] \(testName): RESOURCE LIMIT exceeded on attempt \(attempts) - ignoring and continuing")
                     // Don't count resource limits as failures
                     continue
                 } else {
-                    print("❌ \(testName): Error on attempt \(attempts): \(error)")
+                    print("❌ [ST-\(testId)] \(testName): ACTUAL ERROR on attempt \(attempts)")
                 }
             } catch {
+                let attemptTime = Date().timeIntervalSince(attemptStartTime)
                 lastError = error
-                print("❌ \(testName): Error on attempt \(attempts): \(error)")
+                print("💥 [ST-\(testId)] \(testName): Unknown error on attempt \(attempts) (took \(String(format: "%.3f", attemptTime))s): \(error)")
             }
             
             // Short delay between attempts
             if attempts < maxAttempts {
+                print("⏳ [ST-\(testId)] Waiting \(delayBetweenAttempts)s before next attempt...")
+                let delayStart = Date()
                 try? await Task.sleep(nanoseconds: UInt64(delayBetweenAttempts * 1_000_000_000))
+                let actualDelay = Date().timeIntervalSince(delayStart)
+                totalRetryTime += actualDelay
+                print("✅ [ST-\(testId)] Delay complete (actual: \(String(format: "%.3f", actualDelay))s)")
             }
         }
         
+        let totalTestTime = Date().timeIntervalSince(testStartTime)
+        
         if !succeeded {
+            print("❌ [ST-\(testId)] FINAL FAILURE: \(testName) failed after \(attempts) attempts")
+            print("⏱️ [ST-\(testId)] Total test time: \(String(format: "%.3f", totalTestTime))s")
+            print("⏱️ [ST-\(testId)] Total retry delay time: \(String(format: "%.3f", totalRetryTime))s")
+            
             if let error = lastError {
+                print("🔍 [ST-\(testId)] Last error: \(error)")
                 XCTFail("\(testName) failed after \(attempts) attempts. Last error: \(error)")
             } else {
+                print("🔍 [ST-\(testId)] No error recorded, test returned false")
                 XCTFail("\(testName) failed after \(attempts) attempts with no successful response")
             }
+        } else {
+            print("🎉 [ST-\(testId)] FINAL SUCCESS: \(testName) completed successfully")
+            print("⏱️ [ST-\(testId)] Total test time: \(String(format: "%.3f", totalTestTime))s")
+            print("⏱️ [ST-\(testId)] Total retry delay time: \(String(format: "%.3f", totalRetryTime))s")
         }
         
         XCTAssertTrue(succeeded, "\(testName) should succeed at least once")
@@ -120,20 +159,32 @@ class SmokeTests: XCTestCase {
     
     /// Test the health endpoint for production and development
     func testHealthEndpoint() async throws {
+        print("🏥 Starting health endpoint tests for \(environments.count) environments")
+        
         for environment in environments {
             let envName = String(describing: environment)
+            print("🌍 Testing environment: \(envName)")
+            
             await runWithRetries(testName: "Health check (\(envName))") {
+                print("🔗 Creating OCRClient for environment: \(envName)")
                 let client = OCRClient(environment: environment)
                 
                 do {
+                    print("💊 Calling getHealth() for \(envName)")
                     let health = try await client.getHealth()
+                    print("📊 Health response for \(envName): status=\(health.status), timestamp=\(health.timestamp), version=\(health.version)")
                     // A successful health check should return "ok" status
-                    return health.status == "ok"
+                    let success = health.status == "ok"
+                    print("✅ Health check result for \(envName): \(success ? "SUCCESS" : "FAILURE")")
+                    return success
                 } catch {
+                    print("💥 Health check error for \(envName): \(error)")
                     throw error
                 }
             }
         }
+        
+        print("🏁 Health endpoint tests completed for all environments")
     }
     
     /// Test the health endpoint for staging

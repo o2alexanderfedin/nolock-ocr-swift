@@ -35,7 +35,8 @@
       "Bash(gh release create:*)",
       "Bash(swift package:*)",
       "Bash(sed:*)",
-      "Bash(git flow feature:*)"
+      "Bash(git flow feature:*)",
+      "Bash(rg:*)"
     ],
     "deny": []
   }

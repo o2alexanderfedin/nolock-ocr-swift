@@ -218,31 +218,55 @@ public class OCRClient {
     /// - Returns: A HealthResponse containing the server health information
     /// - Throws: An error if the request fails
     public func getHealth() async throws -> HealthResponse {
+        let requestId = UUID().uuidString.prefix(8)
+        let startTime = Date()
+        
+        print("💊 [\(requestId)] Starting health check request")
+        
         // Reset cancellation flag at the start of a new request
         isCancelled = false
+        print("✅ [\(requestId)] Cancellation flag reset for health check")
         
         let url = try endpointBuilder.buildProcessingURL(endpoint: .health)
+        print("🔗 [\(requestId)] Health check URL: \(url.absoluteString)")
+        
         let request = URLRequest(url: url)
+        print("📤 [\(requestId)] Health check request method: \(request.httpMethod ?? "GET")")
         
         // Check if cancelled before starting the request
         if isCancelled {
+            print("❌ [\(requestId)] Health check cancelled before starting")
             throw OCRClientError.taskCancelled
         }
+        
+        print("🚀 [\(requestId)] Initiating health check network request...")
+        let networkStartTime = Date()
         
         return try await withCheckedThrowingContinuation { continuation in
             // Create a task that can be cancelled
             let task = session.dataTask(with: request) { data, response, error in
+                let networkTime = Date().timeIntervalSince(networkStartTime)
+                let totalTime = Date().timeIntervalSince(startTime)
+                
+                print("📡 [\(requestId)] Health check response received in \(String(format: "%.3f", networkTime))s")
+                print("⏱️ [\(requestId)] Total health check time: \(String(format: "%.3f", totalTime))s")
+                
                 // Clear the active task reference
                 self.activeTask = nil
                 
                 // Handle cancellation
                 if self.isCancelled {
+                    print("❌ [\(requestId)] Health check was cancelled during execution")
                     continuation.resume(throwing: OCRClientError.taskCancelled)
                     return
                 }
                 
                 // Handle connection errors
                 if let error = error {
+                    print("💥 [\(requestId)] Health check network error: \(error.localizedDescription)")
+                    if let urlError = error as? URLError {
+                        print("🔍 [\(requestId)] URLError code: \(urlError.code.rawValue)")
+                    }
                     continuation.resume(throwing: error)
                     return
                 }
@@ -410,88 +434,135 @@ public class OCRClient {
         url: URL, 
         imageData: Data
     ) async throws -> T {
+        let requestId = UUID().uuidString.prefix(8)
+        let startTime = Date()
+        
+        print("🔄 [\(requestId)] Starting request to: \(url.absoluteString)")
+        print("📊 [\(requestId)] Original image size: \(imageData.count) bytes")
+        
         // Reset cancellation flag at the start of a new request
         isCancelled = false
+        print("✅ [\(requestId)] Cancellation flag reset")
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         
         // Process the image data - convert HEIC to PNG if needed
-        let (processedData, _) = try processImageDataWithInfo(imageData)
+        print("🖼️ [\(requestId)] Processing image data...")
+        let imageProcessingStart = Date()
+        let (processedData, wasConverted) = try processImageDataWithInfo(imageData)
+        let imageProcessingTime = Date().timeIntervalSince(imageProcessingStart)
+        
+        print("📸 [\(requestId)] Image processing complete in \(String(format: "%.3f", imageProcessingTime))s")
+        print("🔄 [\(requestId)] Image converted: \(wasConverted ? "YES" : "NO")")
+        print("📏 [\(requestId)] Processed image size: \(processedData.count) bytes")
         
         // Use image/* content type for better compatibility with server
-        // This matches the curl command that works successfully
         let contentType = "image/*"
         request.setValue(contentType, forHTTPHeaderField: "Content-Type")
-        
-        // Set the processed image data as the body
         request.httpBody = processedData
         
-        // Print debug information
-        print("Sending request to URL: \(url.absoluteString)")
-        print("Content-Type: \(contentType)")
-        print("Image data size: \(processedData.count) bytes")
+        print("📤 [\(requestId)] HTTP Method: \(request.httpMethod ?? "Unknown")")
+        print("📤 [\(requestId)] Content-Type: \(contentType)")
+        print("📤 [\(requestId)] Request body size: \(processedData.count) bytes")
         
         // Check if cancelled before starting the request
         if isCancelled {
+            print("❌ [\(requestId)] Request cancelled before starting")
             throw OCRClientError.taskCancelled
         }
+        
+        print("🚀 [\(requestId)] Initiating network request...")
+        let networkStartTime = Date()
         
         return try await withCheckedThrowingContinuation { continuation in
             // Create a task that can be cancelled
             let task = session.dataTask(with: request) { data, response, error in
+                let networkTime = Date().timeIntervalSince(networkStartTime)
+                let totalTime = Date().timeIntervalSince(startTime)
+                
+                print("📡 [\(requestId)] Network response received in \(String(format: "%.3f", networkTime))s")
+                print("⏱️ [\(requestId)] Total request time: \(String(format: "%.3f", totalTime))s")
+                
                 // Store the task reference so it can be cancelled
                 self.activeTask = nil
                 
                 // Handle cancellation
                 if self.isCancelled {
+                    print("❌ [\(requestId)] Request was cancelled during execution")
                     continuation.resume(throwing: OCRClientError.taskCancelled)
                     return
                 }
                 
                 // Handle connection errors
                 if let error = error {
+                    print("💥 [\(requestId)] Network error: \(error.localizedDescription)")
+                    if let urlError = error as? URLError {
+                        print("🔍 [\(requestId)] URLError code: \(urlError.code.rawValue)")
+                        print("🔍 [\(requestId)] URLError domain: \(urlError.errorCode)")
+                    }
                     continuation.resume(throwing: error)
                     return
                 }
                 
                 // Ensure we have valid data and response
                 guard let data = data, let response = response else {
+                    print("❌ [\(requestId)] No data or response received")
                     continuation.resume(throwing: OCRError(error: "No data or response received"))
                     return
                 }
                 
+                print("📦 [\(requestId)] Response data size: \(data.count) bytes")
+                
                 guard let httpResponse = response as? HTTPURLResponse else {
+                    print("❌ [\(requestId)] Invalid HTTP response type")
                     continuation.resume(throwing: OCRError(error: "Invalid response"))
                     return
                 }
                 
+                print("📊 [\(requestId)] HTTP Status Code: \(httpResponse.statusCode)")
+                print("📋 [\(requestId)] Response Headers: \(httpResponse.allHeaderFields)")
+                
                 // Handle HTTP errors
                 guard (200...299).contains(httpResponse.statusCode) else {
-                    // Print the response body for debugging
                     let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
-                    print("HTTP Error \(httpResponse.statusCode): \(responseString)")
+                    print("💥 [\(requestId)] HTTP Error \(httpResponse.statusCode)")
+                    print("📄 [\(requestId)] Error response body: \(responseString)")
                     
                     if let errorResponse = try? JSONDecoder().decode(OCRError.self, from: data) {
+                        print("🔍 [\(requestId)] Parsed OCR error: \(errorResponse)")
                         continuation.resume(throwing: errorResponse)
                     } else {
+                        print("🔍 [\(requestId)] Unable to parse error response as OCRError")
                         continuation.resume(throwing: OCRError(error: "HTTP Error: \(httpResponse.statusCode) - \(responseString)"))
                     }
                     return
                 }
                 
-                // Print raw response data for debugging
+                // Process successful response
+                print("✅ [\(requestId)] HTTP request successful (\(httpResponse.statusCode))")
+                
                 if let jsonString = String(data: data, encoding: .utf8) {
-                    print("Raw JSON Response: \(jsonString)")
+                    print("📄 [\(requestId)] Raw JSON Response (\(data.count) bytes): \(jsonString.prefix(500))\(jsonString.count > 500 ? "..." : "")")
+                } else {
+                    print("⚠️ [\(requestId)] Unable to decode response as UTF-8 string")
                 }
                 
-                // Process successful response
+                let decodingStart = Date()
                 do {
                     let decoder = JSONDecoder()
                     let result = try decoder.decode(T.self, from: data)
+                    let decodingTime = Date().timeIntervalSince(decodingStart)
+                    let finalTotalTime = Date().timeIntervalSince(startTime)
+                    
+                    print("🎯 [\(requestId)] JSON decoding successful in \(String(format: "%.3f", decodingTime))s")
+                    print("🏁 [\(requestId)] Complete request finished in \(String(format: "%.3f", finalTotalTime))s")
                     continuation.resume(returning: result)
                 } catch {
-                    print("JSON Decoding Error: \(error)")
+                    let decodingTime = Date().timeIntervalSince(decodingStart)
+                    print("💥 [\(requestId)] JSON decoding failed in \(String(format: "%.3f", decodingTime))s")
+                    print("🔍 [\(requestId)] Decoding error: \(error)")
+                    print("📝 [\(requestId)] Expected type: \(T.self)")
                     continuation.resume(throwing: error)
                 }
             }
