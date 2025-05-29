@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.0] - 2025-05-28
+
+### Added
+- **Comprehensive Logging System**: Implemented detailed logging throughout the entire proxy and test infrastructure
+  - **OCRClient Request Tracking**: Unique request IDs (8-character UUID prefix) for tracing individual requests
+  - **Performance Timing**: Image processing, network latency, JSON decoding, and total request duration metrics
+  - **Complete Request Flow**: Step-by-step logging from request initiation to completion with emoji indicators
+  - **Detailed Error Logging**: URLError codes, HTTP status codes, response headers, and full error bodies
+  - **Response Content Logging**: Raw JSON responses with intelligent truncation for large payloads
+
+- **OCRProcessingService Session Tracking**: Enhanced processing service with detailed operational visibility
+  - **Session IDs**: Unique 6-character identifiers for tracking processing sessions
+  - **IO Operation Timing**: Detailed timing for getNextItemToProcess() and itemProcessed() calls
+  - **State Tracking**: noItemsAvailable and pendingWorkCounter status logging
+  - **Processing Flow**: Complete item processing lifecycle with timing metrics
+  - **Error Handling**: Comprehensive error logging and notification timing
+
+- **SmokeTests Debugging Enhancement**: Advanced retry logic visibility and performance analysis
+  - **Test Session IDs**: Unique 6-character identifiers for individual test runs
+  - **Retry Logic Transparency**: Attempt-by-attempt progress with detailed timing
+  - **Error Classification**: Intelligent differentiation between timeouts, resource limits, and actual errors
+  - **Performance Metrics**: Total test time, retry overhead, and delay timing analysis
+  - **Final Summaries**: Comprehensive success/failure reports with complete timing breakdown
+
+### Improved
+- **Debug Experience**: All logging uses emoji indicators for visual clarity and easy parsing
+- **Performance Monitoring**: Timing precision to 3 decimal places for accurate performance analysis
+- **Error Diagnosis**: Enhanced error context with domain codes, status codes, and full response bodies
+- **Test Reliability**: Better understanding of test failures vs transient issues through detailed logging
+
+### Technical
+- Added request/session ID tracking throughout the codebase for better traceability
+- Implemented timing measurement infrastructure with high precision
+- Enhanced error handling with detailed context preservation
+- Improved visibility into async operations and processing flows
+
 ## [1.17.1] - 2025-05-27
 
 ### Changed
