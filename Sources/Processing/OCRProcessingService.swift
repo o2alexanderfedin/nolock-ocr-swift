@@ -149,22 +149,33 @@ public class OCRProcessingService<IO: OCRProcessingIO> where IO.Item: OCRProcess
     
     /// Process the next item
     private func processNextItem() {
+        let sessionId = UUID().uuidString.prefix(6)
+        print("🔄 [PS-\(sessionId)] processNextItem() called")
+        
         // Check if processing was cancelled
         guard !isCancelled else {
+            print("❌ [PS-\(sessionId)] Processing cancelled, ending")
             endProcessing(with: .cancelled)
             return
         }
         
+        print("📊 [PS-\(sessionId)] Status check - noItemsAvailable: \(noItemsAvailable), pendingWorkCounter: \(pendingWorkCounter)")
+        
         // Skip getNextItemToProcess() if previous call returned nil and pendingWorkCounter <= 0
         if noItemsAvailable && pendingWorkCounter <= 0 {
+            print("✅ [PS-\(sessionId)] No items available and no pending work, completing")
             endProcessing(with: .completed)
             return
         }
         
         Task {
+            print("🚀 [PS-\(sessionId)] Starting async task for item processing")
             do {
+                print("🔍 [PS-\(sessionId)] Calling io.getNextItemToProcess()...")
+                let ioStart = Date()
                 guard let item = try await io.getNextItemToProcess() else {
-                    // No more items to process
+                    let ioTime = Date().timeIntervalSince(ioStart)
+                    print("📭 [PS-\(sessionId)] No items to process (io call took \(String(format: "%.3f", ioTime))s)")
                     noItemsAvailable = true
                     
                     await MainActor.run {
@@ -173,30 +184,48 @@ public class OCRProcessingService<IO: OCRProcessingIO> where IO.Item: OCRProcess
                     return
                 }
                 
+                let ioTime = Date().timeIntervalSince(ioStart)
+                print("📦 [PS-\(sessionId)] Got item to process (io call took \(String(format: "%.3f", ioTime))s)")
+                
                 // Reset the flag since we found an item
                 noItemsAvailable = false
                 
                 // If we had pendingWorkCounter, decrement it
                 if pendingWorkCounter > 0 {
+                    print("⬇️ [PS-\(sessionId)] Decrementing pendingWorkCounter from \(pendingWorkCounter) to \(pendingWorkCounter - 1)")
                     pendingWorkCounter -= 1
                 }
                 
                 // Process the item (IO should only return unprocessed items)
+                print("🔄 [PS-\(sessionId)] Starting item processing...")
+                let processingStart = Date()
                 do {
                     let result = try await processItem(item)
+                    let processingTime = Date().timeIntervalSince(processingStart)
+                    
+                    print("✅ [PS-\(sessionId)] Item processed successfully in \(String(format: "%.3f", processingTime))s")
                     
                     // Update completion count
                     await MainActor.run {
                         completedCount += 1
+                        print("📈 [PS-\(sessionId)] Incremented completion count to \(completedCount)")
                         updateStatus()
                     }
                     
                     // Notify IO about processed item
+                    print("📤 [PS-\(sessionId)] Notifying IO about successful processing...")
+                    let notifyStart = Date()
                     try await io.itemProcessed(item: item, result: result)
+                    let notifyTime = Date().timeIntervalSince(notifyStart)
+                    print("✅ [PS-\(sessionId)] IO notification complete in \(String(format: "%.3f", notifyTime))s")
                 } catch {
+                    let processingTime = Date().timeIntervalSince(processingStart)
+                    print("💥 [PS-\(sessionId)] Item processing failed in \(String(format: "%.3f", processingTime))s: \(error)")
+                    
                     // Report failure to IO
                     await MainActor.run {
                         completedCount += 1
+                        print("📈 [PS-\(sessionId)] Incremented completion count to \(completedCount) (failed item)")
                         updateStatus()
                     }
                     
