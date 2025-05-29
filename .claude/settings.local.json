@@ -39,5 +39,6 @@
       "Bash(rg:*)"
     ],
     "deny": []
-  }
+  },
+  "enableAllProjectMcpServers": false
 }
